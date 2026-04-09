@@ -157,7 +157,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '24px 20px', maxWidth: '500px', width: '100%', margin: '0 auto' }}>
+      <div style={{ padding: '24px 20px' }}>
         {loading ? (
           <p style={{ color: '#999', textAlign: 'center', marginTop: '40px' }}>Loading...</p>
         ) : (
@@ -215,7 +215,7 @@ export default function SettingsPage() {
                         color: '#1a1a1a',
                         margin: 0,
                       }}>
-                        {system === 'metric' ? '🌍 Metric' : '🇺🇸 Imperial'}
+                        {system === 'metric' ? 'Metric' : 'Imperial'}
                       </p>
                       <p style={{
                         fontSize: '13px',
