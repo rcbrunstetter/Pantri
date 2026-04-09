@@ -34,21 +34,27 @@ export default function RecipesPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
         router.push('/login')
       } else {
         setUser(user)
-        loadRecipes(user.id)
+        const { data: membership } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single()
+        const householdId = membership?.household_id
+        loadRecipes(householdId)
       }
     })
   }, [])
 
-  async function loadRecipes(userId: string) {
+  async function loadRecipes(householdId: string | null | undefined) {
     const { data } = await supabase
       .from('recipes')
       .select('*')
-      .eq('user_id', userId)
+      .eq('household_id', householdId)
       .order('created_at', { ascending: false })
 
     setRecipes(data || [])

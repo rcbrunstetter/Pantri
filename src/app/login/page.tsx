@@ -23,9 +23,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/')
-      router.refresh()
-      setTimeout(() => { window.location.href = '/' }, 300)
+      window.location.href = '/'
     }
   }
 
