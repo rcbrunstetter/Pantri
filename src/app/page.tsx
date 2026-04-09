@@ -23,7 +23,11 @@ export default function HomePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkAuth = async () => {
+      // Small delay to allow Supabase to finish writing session to storage
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/login')
       } else {
@@ -31,7 +35,8 @@ export default function HomePage() {
         loadMessages(session.user.id)
         ensureHousehold(session.user.id)
       }
-    })
+    }
+    checkAuth()
   }, [])
 
   useEffect(() => {
