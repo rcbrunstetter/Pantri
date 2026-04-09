@@ -16,6 +16,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -54,7 +55,7 @@ export default function HomePage() {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: "Hi! I'm Pantri. Tell me what's in your kitchen, what you just bought, or what you cooked — and I'll keep track of everything for you. You can also upload a receipt and I'll read it automatically.",
+        content: "Hi! I'm Pantri. Tell me what's in your kitchen, what you just bought, or what you cooked — and I'll keep track of everything for you. You can also upload a receipt photo and I'll read it automatically.",
       }])
     }
   }
@@ -122,7 +123,7 @@ export default function HomePage() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: "iPhone photos are in HEIC format which I can't read yet. To fix this: go to your iPhone Settings → Camera → Formats → select \"Most Compatible\". Or take a screenshot of the receipt instead!",
+        content: "iPhone photos are in HEIC format which I can't read yet. Go to iPhone Settings → Camera → Formats → select \"Most Compatible\". Or take a screenshot of the receipt instead!",
       }])
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
@@ -173,11 +174,10 @@ export default function HomePage() {
           { user_id: user.id, role: 'assistant', content: replyContent },
         ])
       } else {
-        const errorMsg = "I couldn't read that receipt clearly. Try a photo with better lighting, or type out what you bought!"
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: errorMsg,
+          content: "I couldn't read that receipt clearly. Try a photo with better lighting, or type out what you bought!",
         }])
       }
     } catch (err) {
@@ -220,84 +220,108 @@ export default function HomePage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '16px 20px',
+        padding: '14px 20px',
         backgroundColor: '#fff',
         borderBottom: '1px solid #f0f0f0',
+        position: 'relative',
       }}>
-        <h1 style={{
-          fontSize: '22px',
-          fontWeight: '700',
-          color: '#1a1a1a',
-          margin: 0,
-        }}>Pantri</h1>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={() => router.push('/pantry')}
-            style={{
-              padding: '8px 14px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#2d6a4f',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            My Pantry
-          </button>
-          <button
-            onClick={() => router.push('/planner')}
-            style={{
-              padding: '8px 14px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#2d6a4f',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            Planner
-          </button>
-          <button
-            onClick={() => router.push('/settings')}
-            style={{
-              padding: '8px 12px',
-              fontSize: '16px',
-              backgroundColor: 'transparent',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            ⚙️
-          </button>
-          <button
-            onClick={handleLogout}
-            style={{
-              padding: '8px 14px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#666',
-              backgroundColor: 'transparent',
-              border: '1px solid #e0e0e0',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            Log out
-          </button>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '24px' }}>🧺</span>
+          <span style={{
+            fontSize: '24px',
+            fontWeight: '800',
+            color: '#2d6a4f',
+            letterSpacing: '-0.5px',
+          }}>Pantri</span>
         </div>
+
+        {/* Menu button */}
+        <button
+          onClick={() => setMenuOpen(prev => !prev)}
+          style={{
+            width: '38px',
+            height: '38px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            backgroundColor: menuOpen ? '#f0f7f4' : 'transparent',
+            border: '1px solid #e0e0e0',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            padding: '0',
+          }}
+        >
+          {[0,1,2].map(i => (
+            <div key={i} style={{
+              width: '16px',
+              height: '2px',
+              backgroundColor: '#2d6a4f',
+              borderRadius: '2px',
+            }} />
+          ))}
+        </button>
+
+        {/* Dropdown menu */}
+        {menuOpen && (
+          <>
+            <div
+              onClick={() => setMenuOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 40,
+              }}
+            />
+            <div style={{
+              position: 'absolute',
+              top: '54px',
+              right: '20px',
+              backgroundColor: '#fff',
+              borderRadius: '14px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+              zIndex: 50,
+              overflow: 'hidden',
+              minWidth: '180px',
+              border: '1px solid #f0f0f0',
+            }}>
+              {[
+                { label: '📖 Recipe Book', action: () => { router.push('/recipes'); setMenuOpen(false) } },
+                { label: '⚙️ Settings', action: () => { router.push('/settings'); setMenuOpen(false) } },
+                { label: '🚪 Log out', action: () => { handleLogout(); setMenuOpen(false) } },
+              ].map((item, index, arr) => (
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  style={{
+                    width: '100%',
+                    padding: '14px 18px',
+                    fontSize: '15px',
+                    fontWeight: '500',
+                    color: item.label.includes('Log out') ? '#cc4444' : '#1a1a1a',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    borderBottom: index < arr.length - 1 ? '1px solid #f5f5f5' : 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Messages */}
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '20px',
-        paddingBottom: '160px',
+        padding: '16px 16px',
+        paddingBottom: '140px',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
@@ -311,8 +335,8 @@ export default function HomePage() {
             }}
           >
             <div style={{
-              maxWidth: '80%',
-              padding: '12px 16px',
+              maxWidth: '82%',
+              padding: '11px 15px',
               borderRadius: message.role === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
               backgroundColor: message.role === 'user' ? '#2d6a4f' : '#fff',
               color: message.role === 'user' ? '#fff' : '#1a1a1a',
@@ -328,7 +352,7 @@ export default function HomePage() {
         {(loading || uploading) && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div style={{
-              padding: '12px 16px',
+              padding: '11px 15px',
               borderRadius: '18px 18px 18px 4px',
               backgroundColor: '#fff',
               color: '#999',
@@ -342,7 +366,7 @@ export default function HomePage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Bottom bar — input + nav */}
+      {/* Bottom bar */}
       <div style={{
         position: 'fixed',
         bottom: 0,
@@ -354,7 +378,7 @@ export default function HomePage() {
       }}>
         {/* Input row */}
         <div style={{
-          padding: '12px 16px 8px',
+          padding: '10px 12px 8px',
           display: 'flex',
           gap: '8px',
           alignItems: 'flex-end',
@@ -366,6 +390,30 @@ export default function HomePage() {
             onChange={handleReceiptUpload}
             style={{ display: 'none' }}
           />
+
+          {/* Camera button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || loading}
+            style={{
+              width: '42px',
+              height: '42px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f0f7f4',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '20px',
+              flexShrink: 0,
+              opacity: uploading || loading ? 0.5 : 1,
+            }}
+          >
+            📷
+          </button>
+
+          {/* Text input */}
           <textarea
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -375,7 +423,7 @@ export default function HomePage() {
                 handleSend()
               }
             }}
-            placeholder="Tell Pantri what you bought, cooked, or have..."
+            placeholder="Ask Pantri anything..."
             rows={1}
             style={{
               flex: 1,
@@ -389,23 +437,28 @@ export default function HomePage() {
               backgroundColor: '#fafaf8',
             }}
           />
+
+          {/* Send button */}
           <button
             onClick={handleSend}
             disabled={loading || !input.trim()}
             style={{
-              padding: '10px 18px',
-              fontSize: '15px',
-              fontWeight: '600',
+              width: '42px',
+              height: '42px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
               color: '#fff',
               backgroundColor: '#2d6a4f',
               border: 'none',
               borderRadius: '12px',
               cursor: 'pointer',
               opacity: loading || !input.trim() ? 0.5 : 1,
-              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
-            Send
+            ↑
           </button>
         </div>
 
@@ -414,35 +467,30 @@ export default function HomePage() {
           display: 'flex',
           justifyContent: 'space-around',
           alignItems: 'center',
-          padding: '4px 0 12px',
+          padding: '4px 0 10px',
           borderTop: '1px solid #f5f5f5',
         }}>
           {[
-            { icon: '📷', label: 'Receipt', action: () => fileInputRef.current?.click() },
-            { icon: '🍽️', label: 'Meal Ideas', action: () => {
-              setInput("What meals can I make with what I have in my pantry right now? Give me 3 suggestions with a brief description of each.")
-            }},
+            { icon: '🥦', label: 'My Pantry', action: () => router.push('/pantry') },
+            { icon: '📅', label: 'Planner', action: () => router.push('/planner') },
             { icon: '🛒', label: 'Grocery', action: () => router.push('/grocery') },
-            { icon: '📖', label: 'Recipes', action: () => router.push('/recipes') },
           ].map(item => (
             <button
               key={item.label}
               onClick={item.action}
-              disabled={uploading || loading}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '2px',
-                padding: '6px 12px',
+                gap: '3px',
+                padding: '6px 20px',
                 backgroundColor: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
-                opacity: uploading || loading ? 0.5 : 1,
               }}
             >
               <span style={{ fontSize: '22px' }}>{item.icon}</span>
-              <span style={{ fontSize: '11px', color: '#999', fontWeight: '500' }}>{item.label}</span>
+              <span style={{ fontSize: '11px', color: '#666', fontWeight: '500' }}>{item.label}</span>
             </button>
           ))}
         </div>
