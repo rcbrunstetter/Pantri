@@ -319,6 +319,32 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {/* Food Profile */}
+            <div
+              onClick={() => router.push('/food-profile')}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: '16px',
+                padding: '20px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+              }}
+            >
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#1a1a1a', margin: '0 0 4px 0' }}>
+                  Food Profile
+                </h2>
+                <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
+                  Dietary restrictions, allergies, cuisines, budget
+                </p>
+              </div>
+              <span style={{ color: '#ccc', fontSize: '20px' }}>›</span>
+            </div>
+
             {/* Household */}
             <div style={{
               backgroundColor: '#fff',

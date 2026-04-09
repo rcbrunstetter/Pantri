@@ -18,9 +18,11 @@ export async function POST(req: NextRequest) {
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 
-  const [{ data: pantryItems }, { data: profile }] = await Promise.all([
+  const [{ data: pantryItems }, { data: profile }, { data: foodProfile }, { data: recipes }] = await Promise.all([
     supabase.from('pantry_items').select('*').eq('household_id', householdId),
     supabase.from('profiles').select('unit_system, family_size').eq('id', userId).single(),
+    supabase.from('household_profiles').select('*').eq('household_id', householdId).single(),
+    supabase.from('recipes').select('title, ingredients').eq('household_id', householdId),
   ])
 
   const unitSystem = profile?.unit_system || 'metric'
@@ -62,6 +64,21 @@ export async function POST(req: NextRequest) {
   const systemPrompt = `You are Pantri, a friendly and smart kitchen assistant. You help families track what's in their pantry, suggest meals, save recipes, and generate grocery lists.
 
 ${pantryContext}
+
+${foodProfile ? `
+Household food profile:
+- Dietary restrictions: ${foodProfile.dietary_restrictions?.length ? foodProfile.dietary_restrictions.join(', ') : 'None'}
+- Allergies (NEVER suggest these): ${foodProfile.allergies || 'None'}
+- Disliked ingredients (avoid these): ${foodProfile.disliked_ingredients || 'None'}
+- Preferred cuisines: ${foodProfile.cuisine_preferences?.length ? foodProfile.cuisine_preferences.join(', ') : 'No preference'}
+- Weekly grocery budget: ${foodProfile.weekly_budget ? '$' + foodProfile.weekly_budget : 'Not set'}
+` : ''}
+
+${recipes && recipes.length > 0 ? `
+Saved recipes in their recipe book:
+${recipes.map((r: any) => `- ${r.title}`).join('\n')}
+When suggesting meals, prioritize recipes they already have saved. You can reference them by name.
+` : ''}
 
 User's family size: ${familySize} people
 Unit preference: ${unitSystem.toUpperCase()}
