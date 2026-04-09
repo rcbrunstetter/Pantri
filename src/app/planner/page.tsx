@@ -223,8 +223,6 @@ export default function PlannerPage() {
     router.push('/grocery?mode=plan')
   }
 
-  const mealEmoji = { breakfast: '🌅', lunch: '☀️', dinner: '🌙' }
-
   return (
     <div style={{
       display: 'flex',
@@ -280,7 +278,7 @@ export default function PlannerPage() {
             opacity: generatingList || Object.keys(meals).length === 0 ? 0.5 : 1,
           }}
         >
-          🛒 List
+          List
         </button>
       </div>
 
@@ -371,7 +369,7 @@ export default function PlannerPage() {
                       alignItems: 'center',
                       gap: '10px',
                     }}>
-                      <span style={{ fontSize: '16px', flexShrink: 0 }}>{mealEmoji[mealType]}</span>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: '#999', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0, width: '70px' }}>{mealType.charAt(0).toUpperCase() + mealType.slice(1)}</span>
                       {slot ? (
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -399,7 +397,6 @@ export default function PlannerPage() {
                           </div>
                           {/* Per-meal servings stepper */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
-                            <span style={{ fontSize: '12px', color: '#999' }}>👥</span>
                             <button
                               onClick={() => adjustServings(day, mealType, -1)}
                               style={{
@@ -492,7 +489,7 @@ export default function PlannerPage() {
               color: '#1a1a1a',
               margin: '0 0 4px 0',
             }}>
-              {mealEmoji[showPicker.meal]} {showPicker.meal.charAt(0).toUpperCase() + showPicker.meal.slice(1)}
+              {showPicker.meal.charAt(0).toUpperCase() + showPicker.meal.slice(1)}
             </h2>
             <p style={{
               fontSize: '14px',

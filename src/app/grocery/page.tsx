@@ -252,7 +252,6 @@ export default function GroceryPage() {
       <div style={{ flex: 1, padding: '20px', paddingBottom: '120px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', marginTop: '60px' }}>
-            <p style={{ fontSize: '32px', marginBottom: '12px' }}>🛒</p>
             <p style={{ fontSize: '16px', color: '#666' }}>Building your grocery list...</p>
           </div>
         ) : (
@@ -369,7 +368,6 @@ export default function GroceryPage() {
             {/* Items grouped by category */}
             {items.length === 0 ? (
               <div style={{ textAlign: 'center', marginTop: '40px' }}>
-                <p style={{ fontSize: '32px', marginBottom: '12px' }}>✅</p>
                 <p style={{ fontSize: '18px', fontWeight: '600', color: '#1a1a1a', marginBottom: '8px' }}>
                   You're all stocked up!
                 </p>
