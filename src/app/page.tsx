@@ -204,6 +204,30 @@ export default function HomePage() {
       .replace(/^<br\/>/, '')
   }
 
+  async function ensureHousehold(userId: string) {
+    const { data: membership } = await supabase
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', userId)
+      .single()
+
+    if (!membership) {
+      const { data: household } = await supabase
+        .from('households')
+        .insert({ name: 'My Household' })
+        .select()
+        .single()
+
+      if (household) {
+        await supabase.from('household_members').insert({
+          household_id: household.id,
+          user_id: userId,
+          role: 'owner',
+        })
+      }
+    }
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut()
     router.push('/login')
