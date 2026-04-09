@@ -113,7 +113,6 @@ export default function HomePage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
-    // Check for unsupported formats
     const unsupported = ['image/heic', 'image/heif']
     if (
       unsupported.includes(file.type.toLowerCase()) ||
@@ -123,7 +122,7 @@ export default function HomePage() {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
         role: 'assistant',
-        content: "iPhone photos are in HEIC format which I can't read yet. To fix this: go to your iPhone Settings → Camera → Formats → select \"Most Compatible\". This saves photos as JPEG going forward. Or take a screenshot of the receipt instead!",
+        content: "iPhone photos are in HEIC format which I can't read yet. To fix this: go to your iPhone Settings → Camera → Formats → select \"Most Compatible\". Or take a screenshot of the receipt instead!",
       }])
       if (fileInputRef.current) fileInputRef.current.value = ''
       return
@@ -154,9 +153,7 @@ export default function HomePage() {
         const itemList = data.items.map((i: any) => {
           const qty = i.quantity && i.unit
             ? ` (${i.quantity}${i.unit})`
-            : i.quantity
-            ? ` (${i.quantity})`
-            : ''
+            : i.quantity ? ` (${i.quantity})` : ''
           return `${i.name}${qty}`
         }).join(', ')
 
@@ -197,19 +194,12 @@ export default function HomePage() {
 
   function formatMessage(text: string): string {
     return text
-      // Bold
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Line breaks for numbered lists
       .replace(/(\d+\.)\s/g, '<br/><strong>$1</strong> ')
-      // Bullet points
       .replace(/^[-•]\s(.+)/gm, '<br/>• $1')
-      // Dashes used as list separators
       .replace(/\s-\s([^-])/g, '<br/>• $1')
-      // Double newlines → paragraph break
       .replace(/\n\n/g, '<br/><br/>')
-      // Single newlines
       .replace(/\n/g, '<br/>')
-      // Clean up leading break
       .replace(/^<br\/>/, '')
   }
 
@@ -255,21 +245,6 @@ export default function HomePage() {
             }}
           >
             My Pantry
-          </button>
-          <button
-            onClick={() => router.push('/recipes')}
-            style={{
-              padding: '8px 14px',
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#2d6a4f',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            Recipe Book
           </button>
           <button
             onClick={() => router.push('/planner')}
@@ -322,6 +297,7 @@ export default function HomePage() {
         flex: 1,
         overflowY: 'auto',
         padding: '20px',
+        paddingBottom: '160px',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
@@ -366,110 +342,110 @@ export default function HomePage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Bottom bar — input + nav */}
       <div style={{
-        padding: '16px 20px',
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
         backgroundColor: '#fff',
         borderTop: '1px solid #f0f0f0',
-        display: 'flex',
-        gap: '10px',
-        alignItems: 'flex-end',
+        paddingBottom: 'env(safe-area-inset-bottom)',
       }}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleReceiptUpload}
-          style={{ display: 'none' }}
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading || loading}
-          style={{
-            padding: '12px',
-            fontSize: '20px',
-            backgroundColor: '#f0f7f4',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            opacity: uploading || loading ? 0.5 : 1,
-          }}
-        >
-          📷
-        </button>
-        <button
-          onClick={() => {
-            setInput("What meals can I make with what I have in my pantry right now? Give me 3 suggestions with a brief description of each.")
-          }}
-          disabled={uploading || loading}
-          style={{
-            padding: '12px',
-            fontSize: '20px',
-            backgroundColor: '#f0f7f4',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            opacity: uploading || loading ? 0.5 : 1,
-          }}
-        >
-          🍽️
-        </button>
-        <button
-          onClick={() => router.push('/grocery')}
-          disabled={uploading || loading}
-          style={{
-            padding: '12px',
-            fontSize: '20px',
-            backgroundColor: '#f0f7f4',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            opacity: uploading || loading ? 0.5 : 1,
-          }}
-        >
-          🛒
-        </button>
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              handleSend()
-            }
-          }}
-          placeholder="Tell Pantri what you bought, cooked, or have..."
-          rows={1}
-          style={{
-            flex: 1,
-            padding: '12px 16px',
-            fontSize: '15px',
-            border: '1px solid #e0e0e0',
-            borderRadius: '12px',
-            outline: 'none',
-            resize: 'none',
-            fontFamily: 'inherit',
-            backgroundColor: '#fafaf8',
-          }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={loading || !input.trim()}
-          style={{
-            padding: '12px 20px',
-            fontSize: '15px',
-            fontWeight: '600',
-            color: '#fff',
-            backgroundColor: '#2d6a4f',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            opacity: loading || !input.trim() ? 0.5 : 1,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Send
-        </button>
+        {/* Input row */}
+        <div style={{
+          padding: '12px 16px 8px',
+          display: 'flex',
+          gap: '8px',
+          alignItems: 'flex-end',
+        }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleReceiptUpload}
+            style={{ display: 'none' }}
+          />
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleSend()
+              }
+            }}
+            placeholder="Tell Pantri what you bought, cooked, or have..."
+            rows={1}
+            style={{
+              flex: 1,
+              padding: '10px 14px',
+              fontSize: '15px',
+              border: '1px solid #e0e0e0',
+              borderRadius: '12px',
+              outline: 'none',
+              resize: 'none',
+              fontFamily: 'inherit',
+              backgroundColor: '#fafaf8',
+            }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            style={{
+              padding: '10px 18px',
+              fontSize: '15px',
+              fontWeight: '600',
+              color: '#fff',
+              backgroundColor: '#2d6a4f',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              opacity: loading || !input.trim() ? 0.5 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Send
+          </button>
+        </div>
+
+        {/* Bottom nav */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          padding: '4px 0 12px',
+          borderTop: '1px solid #f5f5f5',
+        }}>
+          {[
+            { icon: '📷', label: 'Receipt', action: () => fileInputRef.current?.click() },
+            { icon: '🍽️', label: 'Meal Ideas', action: () => {
+              setInput("What meals can I make with what I have in my pantry right now? Give me 3 suggestions with a brief description of each.")
+            }},
+            { icon: '🛒', label: 'Grocery', action: () => router.push('/grocery') },
+            { icon: '📖', label: 'Recipes', action: () => router.push('/recipes') },
+          ].map(item => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              disabled={uploading || loading}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px',
+                padding: '6px 12px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                opacity: uploading || loading ? 0.5 : 1,
+              }}
+            >
+              <span style={{ fontSize: '22px' }}>{item.icon}</span>
+              <span style={{ fontSize: '11px', color: '#999', fontWeight: '500' }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
