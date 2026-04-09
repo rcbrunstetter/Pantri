@@ -23,7 +23,7 @@ export default function HomePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!session) {
         router.push('/login')
       } else {
@@ -32,6 +32,7 @@ export default function HomePage() {
         ensureHousehold(session.user.id)
       }
     })
+    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
@@ -114,21 +115,6 @@ export default function HomePage() {
   async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file || !user) return
-
-    const unsupported = ['image/heic', 'image/heif']
-    if (
-      unsupported.includes(file.type.toLowerCase()) ||
-      file.name.toLowerCase().endsWith('.heic') ||
-      file.name.toLowerCase().endsWith('.heif')
-    ) {
-      setMessages(prev => [...prev, {
-        id: Date.now().toString(),
-        role: 'assistant',
-        content: "iPhone photos are in HEIC format which I can't read yet. Go to iPhone Settings → Camera → Formats → select \"Most Compatible\". Or take a screenshot of the receipt instead!",
-      }])
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      return
-    }
 
     setUploading(true)
 
