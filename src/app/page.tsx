@@ -23,12 +23,13 @@ export default function HomePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
         router.push('/login')
       } else {
-        setUser(user)
-        loadMessages(user.id)
+        setUser(session.user)
+        loadMessages(session.user.id)
+        ensureHousehold(session.user.id)
       }
     })
   }, [])
