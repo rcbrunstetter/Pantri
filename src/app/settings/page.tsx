@@ -11,6 +11,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [householdName, setHouseholdName] = useState('')
+  const [members, setMembers] = useState<any[]>([])
+  const [inviteLink, setInviteLink] = useState('')
+  const [generatingInvite, setGeneratingInvite] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [householdId, setHouseholdId] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -21,6 +27,7 @@ export default function SettingsPage() {
       } else {
         setUser(user)
         loadProfile(user.id)
+        loadHousehold(user.id)
       }
     })
   }, [])
@@ -41,6 +48,27 @@ export default function SettingsPage() {
     setLoading(false)
   }
 
+  async function loadHousehold(userId: string) {
+    const { data: membership } = await supabase
+      .from('household_members')
+      .select('household_id, role, households(name)')
+      .eq('user_id', userId)
+      .single()
+
+    if (membership) {
+      const household = membership.households as any
+      setHouseholdName(household?.name || 'My Household')
+      setHouseholdId(membership.household_id)
+
+      const { data: allMembers } = await supabase
+        .from('household_members')
+        .select('user_id, role, profiles(id)')
+        .eq('household_id', membership.household_id)
+
+      setMembers(allMembers || [])
+    }
+  }
+
   async function handleSave() {
     if (!user) return
     setSaving(true)
@@ -57,6 +85,32 @@ export default function SettingsPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
+  }
+
+  async function handleGenerateInvite() {
+    if (!householdId) return
+    setGeneratingInvite(true)
+
+    const { data: invite } = await supabase
+      .from('household_invites')
+      .insert({
+        household_id: householdId,
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (invite) {
+      const link = `${window.location.origin}/join?token=${invite.token}`
+      setInviteLink(link)
+    }
+    setGeneratingInvite(false)
+  }
+
+  async function handleCopyInvite() {
+    await navigator.clipboard.writeText(inviteLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   return (
@@ -263,6 +317,99 @@ export default function SettingsPage() {
                   +
                 </button>
               </div>
+            </div>
+
+            {/* Household */}
+            <div style={{
+              backgroundColor: '#fff',
+              borderRadius: '16px',
+              padding: '20px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              marginBottom: '24px',
+            }}>
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: '700',
+                color: '#1a1a1a',
+                margin: '0 0 6px 0',
+              }}>Household</h2>
+              <p style={{
+                fontSize: '14px',
+                color: '#666',
+                margin: '0 0 16px 0',
+              }}>
+                {householdName} · {members.length} {members.length === 1 ? 'member' : 'members'}
+              </p>
+
+              {!inviteLink ? (
+                <button
+                  onClick={handleGenerateInvite}
+                  disabled={generatingInvite}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    color: '#2d6a4f',
+                    backgroundColor: '#f0f7f4',
+                    border: 'none',
+                    borderRadius: '12px',
+                    cursor: 'pointer',
+                    opacity: generatingInvite ? 0.7 : 1,
+                  }}
+                >
+                  {generatingInvite ? 'Generating...' : '+ Invite Someone'}
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
+                    Share this link — it expires in 7 days and can only be used once.
+                  </p>
+                  <div style={{
+                    padding: '12px 14px',
+                    backgroundColor: '#f5f5f5',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    color: '#444',
+                    wordBreak: 'break-all',
+                  }}>
+                    {inviteLink}
+                  </div>
+                  <button
+                    onClick={handleCopyInvite}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: '#fff',
+                      backgroundColor: copied ? '#40916c' : '#2d6a4f',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                    }}
+                  >
+                    {copied ? '✓ Copied!' : 'Copy Invite Link'}
+                  </button>
+                  <button
+                    onClick={() => setInviteLink('')}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      fontSize: '15px',
+                      fontWeight: '600',
+                      color: '#666',
+                      backgroundColor: '#f5f5f5',
+                      border: 'none',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Generate New Link
+                  </button>
+                </div>
+              )}
             </div>
 
             <button
