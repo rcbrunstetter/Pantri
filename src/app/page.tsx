@@ -23,7 +23,7 @@ export default function HomePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.push('/login')
       } else {
@@ -32,7 +32,6 @@ export default function HomePage() {
         ensureHousehold(session.user.id)
       }
     })
-    return () => subscription.unsubscribe()
   }, [])
 
   useEffect(() => {
