@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
+import convert from 'heic-convert'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -24,10 +25,33 @@ export async function POST(req: NextRequest) {
   const fileBuffer = await file.arrayBuffer()
   const fileName = `${userId}/${Date.now()}.jpg`
 
+  // Detect HEIC by MIME type, file extension, or ftyp box in first 12 bytes
+  const isHeic = (
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    /\.heic$/i.test(file.name) ||
+    (() => {
+      const bytes = new Uint8Array(fileBuffer, 0, 12)
+      const ftyp = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7])
+      return ftyp === 'ftyp'
+    })()
+  )
+
+  let inputBuffer: Buffer
+  if (isHeic) {
+    inputBuffer = Buffer.from(await convert({
+      buffer: Buffer.from(fileBuffer),
+      format: 'JPEG',
+      quality: 0.9,
+    }))
+  } else {
+    inputBuffer = Buffer.from(fileBuffer)
+  }
+
   // Convert any image format (including HEIC) to JPEG using sharp
   let convertedBuffer: Buffer
   try {
-    convertedBuffer = await sharp(Buffer.from(fileBuffer))
+    convertedBuffer = await sharp(inputBuffer)
       .rotate() // auto-rotate based on EXIF
       .jpeg({ quality: 90 })
       .toBuffer()
