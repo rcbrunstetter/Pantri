@@ -134,7 +134,7 @@ export default function HomePage() {
     const uploadingMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: '📷 Receipt uploaded — reading it now...',
+      content: 'Receipt uploaded — reading it now...',
     }
     setMessages(prev => [...prev, uploadingMessage])
 
@@ -226,17 +226,15 @@ export default function HomePage() {
         position: 'relative',
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '24px' }}>🧺</span>
-          <span style={{
-            fontSize: '24px',
-            fontWeight: '800',
-            color: '#2d6a4f',
-            letterSpacing: '-0.5px',
-          }}>Pantri</span>
-        </div>
+        <span style={{
+          fontSize: '28px',
+          fontWeight: '800',
+          color: '#2d6a4f',
+          letterSpacing: '-1px',
+          fontFamily: 'Georgia, "Times New Roman", serif',
+        }}>Pantri</span>
 
-        {/* Menu button */}
+        {/* Hamburger menu */}
         <button
           onClick={() => setMenuOpen(prev => !prev)}
           style={{
@@ -264,16 +262,12 @@ export default function HomePage() {
           ))}
         </button>
 
-        {/* Dropdown menu */}
+        {/* Dropdown */}
         {menuOpen && (
           <>
             <div
               onClick={() => setMenuOpen(false)}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 40,
-              }}
+              style={{ position: 'fixed', inset: 0, zIndex: 40 }}
             />
             <div style={{
               position: 'absolute',
@@ -288,9 +282,9 @@ export default function HomePage() {
               border: '1px solid #f0f0f0',
             }}>
               {[
-                { label: '📖 Recipe Book', action: () => { router.push('/recipes'); setMenuOpen(false) } },
-                { label: '⚙️ Settings', action: () => { router.push('/settings'); setMenuOpen(false) } },
-                { label: '🚪 Log out', action: () => { handleLogout(); setMenuOpen(false) } },
+                { label: 'Recipe Book', action: () => { router.push('/recipes'); setMenuOpen(false) } },
+                { label: 'Settings', action: () => { router.push('/settings'); setMenuOpen(false) } },
+                { label: 'Log out', action: () => { handleLogout(); setMenuOpen(false) }, danger: true },
               ].map((item, index, arr) => (
                 <button
                   key={item.label}
@@ -300,7 +294,7 @@ export default function HomePage() {
                     padding: '14px 18px',
                     fontSize: '15px',
                     fontWeight: '500',
-                    color: item.label.includes('Log out') ? '#cc4444' : '#1a1a1a',
+                    color: item.danger ? '#cc4444' : '#1a1a1a',
                     backgroundColor: 'transparent',
                     border: 'none',
                     borderBottom: index < arr.length - 1 ? '1px solid #f5f5f5' : 'none',
@@ -320,7 +314,7 @@ export default function HomePage() {
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '16px 16px',
+        padding: '16px',
         paddingBottom: '140px',
         display: 'flex',
         flexDirection: 'column',
@@ -405,12 +399,14 @@ export default function HomePage() {
               border: 'none',
               borderRadius: '12px',
               cursor: 'pointer',
-              fontSize: '20px',
               flexShrink: 0,
               opacity: uploading || loading ? 0.5 : 1,
             }}
           >
-            📷
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2d6a4f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
           </button>
 
           {/* Text input */}
@@ -448,8 +444,6 @@ export default function HomePage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '18px',
-              color: '#fff',
               backgroundColor: '#2d6a4f',
               border: 'none',
               borderRadius: '12px',
@@ -458,7 +452,10 @@ export default function HomePage() {
               flexShrink: 0,
             }}
           >
-            ↑
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
+            </svg>
           </button>
         </div>
 
@@ -471,9 +468,27 @@ export default function HomePage() {
           borderTop: '1px solid #f5f5f5',
         }}>
           {[
-            { icon: '🥦', label: 'My Pantry', action: () => router.push('/pantry') },
-            { icon: '📅', label: 'Planner', action: () => router.push('/planner') },
-            { icon: '🛒', label: 'Grocery', action: () => router.push('/grocery') },
+            { label: 'My Pantry', action: () => router.push('/pantry'), icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            )},
+            { label: 'Planner', action: () => router.push('/planner'), icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+            )},
+            { label: 'Grocery', action: () => router.push('/grocery'), icon: (
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"/>
+                <circle cx="20" cy="21" r="1"/>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+              </svg>
+            )},
           ].map(item => (
             <button
               key={item.label}
@@ -489,7 +504,7 @@ export default function HomePage() {
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: '22px' }}>{item.icon}</span>
+              {item.icon}
               <span style={{ fontSize: '11px', color: '#666', fontWeight: '500' }}>{item.label}</span>
             </button>
           ))}

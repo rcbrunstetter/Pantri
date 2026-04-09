@@ -14,6 +14,7 @@ interface Recipe {
 interface MealSlot {
   recipeId: string
   recipeTitle: string
+  servings: number
 }
 
 interface Meals {
@@ -49,7 +50,6 @@ function addDays(date: Date, days: number): Date {
 export default function PlannerPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [meals, setMeals] = useState<Meals>({})
-  const [servings, setServings] = useState(2)
   const [familySize, setFamilySize] = useState(2)
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()))
   const [user, setUser] = useState<any>(null)
@@ -83,7 +83,6 @@ export default function PlannerPage() {
     setRecipes(recipesData || [])
     const fs = profile?.family_size || 2
     setFamilySize(fs)
-    setServings(fs)
     await loadWeekPlan(userId)
     setLoading(false)
   }
@@ -98,7 +97,6 @@ export default function PlannerPage() {
 
     if (data) {
       setMeals(data.meals || {})
-      setServings(data.servings || familySize)
     } else {
       setMeals({})
     }
@@ -111,7 +109,6 @@ export default function PlannerPage() {
       user_id: user.id,
       week_start: formatDate(weekStart),
       meals: updatedMeals,
-      servings,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,week_start' })
     setSaving(false)
@@ -122,12 +119,27 @@ export default function PlannerPage() {
       ...meals,
       [day]: {
         ...meals[day],
-        [mealType]: { recipeId: recipe.id, recipeTitle: recipe.title },
+        [mealType]: { recipeId: recipe.id, recipeTitle: recipe.title, servings: familySize },
       },
     }
     setMeals(updated)
     savePlan(updated)
     setShowPicker(null)
+  }
+
+  function adjustServings(day: string, mealType: typeof MEAL_TYPES[number], delta: number) {
+    const slot = meals[day]?.[mealType]
+    if (!slot) return
+    const newServings = Math.min(20, Math.max(1, slot.servings + delta))
+    const updated = {
+      ...meals,
+      [day]: {
+        ...meals[day],
+        [mealType]: { ...slot, servings: newServings },
+      },
+    }
+    setMeals(updated)
+    savePlan(updated)
   }
 
   function removeRecipe(day: string, mealType: typeof MEAL_TYPES[number]) {
@@ -144,7 +156,7 @@ export default function PlannerPage() {
     if (!user) return
     setGeneratingList(true)
 
-    // Collect all recipes in the plan
+    // Collect all unique recipe IDs in the plan
     const plannedRecipeIds = new Set<string>()
     Object.values(meals).forEach(day => {
       Object.values(day).forEach((slot: any) => {
@@ -169,16 +181,23 @@ export default function PlannerPage() {
       .select('*')
       .eq('user_id', user.id)
 
-    // Build context for grocery API
-    const recipeContext = plannedRecipes?.map(r => {
-      const scale = servings / (r.servings || 2)
-      const scaledIngredients = r.ingredients.map((ing: any) => {
-        const qty = parseFloat(ing.quantity)
-        const scaledQty = isNaN(qty) ? ing.quantity : (qty * scale).toFixed(1)
-        return `${scaledQty} ${ing.unit} ${ing.name}`
-      }).join(', ')
-      return `${r.title}: ${scaledIngredients}`
-    }).join('\n')
+    // Build per-meal recipe context using per-slot servings
+    const recipeLines: string[] = []
+    Object.entries(meals).forEach(([day, dayMeals]) => {
+      Object.entries(dayMeals).forEach(([mealType, slot]: [string, any]) => {
+        if (!slot?.recipeId) return
+        const recipe = plannedRecipes?.find(r => r.id === slot.recipeId)
+        if (!recipe) return
+        const scale = slot.servings / (recipe.servings || 2)
+        const scaledIngredients = recipe.ingredients.map((ing: any) => {
+          const qty = parseFloat(ing.quantity)
+          const scaledQty = isNaN(qty) ? ing.quantity : (qty * scale).toFixed(1)
+          return `${scaledQty} ${ing.unit} ${ing.name}`
+        }).join(', ')
+        recipeLines.push(`${recipe.title} (${day} ${mealType}, ${slot.servings} servings): ${scaledIngredients}`)
+      })
+    })
+    const recipeContext = recipeLines.join('\n')
 
     const pantryContext = pantryItems && pantryItems.length > 0
       ? `Current pantry:\n${pantryItems.map((item: any) =>
@@ -186,11 +205,10 @@ export default function PlannerPage() {
         ).join('\n')}`
       : 'Pantry is empty.'
 
-    // Store in sessionStorage and navigate to grocery page with plan mode
     sessionStorage.setItem('groceryFromPlan', JSON.stringify({
       recipeContext,
       pantryContext,
-      servings,
+      servings: familySize,
     }))
 
     setGeneratingList(false)
@@ -258,91 +276,48 @@ export default function PlannerPage() {
         </button>
       </div>
 
-      {/* Week navigation + servings */}
+      {/* Week navigation */}
       <div style={{
         padding: '12px 20px',
         backgroundColor: '#fff',
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         gap: '12px',
       }}>
-        {/* Week nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setWeekStart(addDays(weekStart, -7))}
-            style={{
-              padding: '6px 10px',
-              fontSize: '16px',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              color: '#2d6a4f',
-            }}
-          >
-            ‹
-          </button>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap' }}>
-            {weekStart.toLocaleDateString('en', { month: 'short', day: 'numeric' })} –{' '}
-            {addDays(weekStart, 6).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-          </span>
-          <button
-            onClick={() => setWeekStart(addDays(weekStart, 7))}
-            style={{
-              padding: '6px 10px',
-              fontSize: '16px',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              color: '#2d6a4f',
-            }}
-          >
-            ›
-          </button>
-        </div>
-
-        {/* Servings */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '13px', color: '#666' }}>👥</span>
-          <button
-            onClick={() => setServings(prev => Math.max(1, prev - 1))}
-            style={{
-              width: '28px',
-              height: '28px',
-              fontSize: '18px',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: '#2d6a4f',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >−</button>
-          <span style={{ fontSize: '15px', fontWeight: '700', color: '#1a1a1a', minWidth: '20px', textAlign: 'center' }}>
-            {servings}
-          </span>
-          <button
-            onClick={() => setServings(prev => Math.min(20, prev + 1))}
-            style={{
-              width: '28px',
-              height: '28px',
-              fontSize: '18px',
-              backgroundColor: '#f0f7f4',
-              border: 'none',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              color: '#2d6a4f',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >+</button>
-        </div>
+        <button
+          onClick={() => setWeekStart(addDays(weekStart, -7))}
+          style={{
+            padding: '6px 10px',
+            fontSize: '16px',
+            backgroundColor: '#f0f7f4',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#2d6a4f',
+          }}
+        >
+          ‹
+        </button>
+        <span style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a', whiteSpace: 'nowrap' }}>
+          {weekStart.toLocaleDateString('en', { month: 'short', day: 'numeric' })} –{' '}
+          {addDays(weekStart, 6).toLocaleDateString('en', { month: 'short', day: 'numeric' })}
+        </span>
+        <button
+          onClick={() => setWeekStart(addDays(weekStart, 7))}
+          style={{
+            padding: '6px 10px',
+            fontSize: '16px',
+            backgroundColor: '#f0f7f4',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#2d6a4f',
+          }}
+        >
+          ›
+        </button>
       </div>
 
       {/* Meal grid */}
@@ -390,26 +365,71 @@ export default function PlannerPage() {
                     }}>
                       <span style={{ fontSize: '16px', flexShrink: 0 }}>{mealEmoji[mealType]}</span>
                       {slot ? (
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <p style={{
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            color: '#1a1a1a',
-                            margin: 0,
-                          }}>{slot.recipeTitle}</p>
-                          <button
-                            onClick={() => removeRecipe(day, mealType)}
-                            style={{
-                              padding: '4px 8px',
-                              fontSize: '12px',
-                              color: '#cc4444',
-                              backgroundColor: '#fff5f5',
-                              border: 'none',
-                              borderRadius: '6px',
-                              cursor: 'pointer',
-                              flexShrink: 0,
-                            }}
-                          >✕</button>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <p style={{
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              color: '#1a1a1a',
+                              margin: 0,
+                              flex: 1,
+                              marginRight: '8px',
+                            }}>{slot.recipeTitle}</p>
+                            <button
+                              onClick={() => removeRecipe(day, mealType)}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                color: '#cc4444',
+                                backgroundColor: '#fff5f5',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                flexShrink: 0,
+                              }}
+                            >✕</button>
+                          </div>
+                          {/* Per-meal servings stepper */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px' }}>
+                            <span style={{ fontSize: '12px', color: '#999' }}>👥</span>
+                            <button
+                              onClick={() => adjustServings(day, mealType, -1)}
+                              style={{
+                                width: '22px',
+                                height: '22px',
+                                fontSize: '14px',
+                                backgroundColor: '#f0f7f4',
+                                border: 'none',
+                                borderRadius: '50%',
+                                cursor: 'pointer',
+                                color: '#2d6a4f',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >−</button>
+                            <span style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', minWidth: '16px', textAlign: 'center' }}>
+                              {slot.servings}
+                            </span>
+                            <button
+                              onClick={() => adjustServings(day, mealType, 1)}
+                              style={{
+                                width: '22px',
+                                height: '22px',
+                                fontSize: '14px',
+                                backgroundColor: '#f0f7f4',
+                                border: 'none',
+                                borderRadius: '50%',
+                                cursor: 'pointer',
+                                color: '#2d6a4f',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >+</button>
+                          </div>
                         </div>
                       ) : (
                         <button
