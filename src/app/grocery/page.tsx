@@ -18,6 +18,7 @@ export default function GroceryPage() {
   const [loading, setLoading] = useState(true)
   const [completing, setCompleting] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [householdId, setHouseholdId] = useState<string | null>(null)
   const [newItem, setNewItem] = useState('')
   const [newQty, setNewQty] = useState('')
   const [newUnit, setNewUnit] = useState('')
@@ -26,11 +27,18 @@ export default function GroceryPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
         router.push('/login')
       } else {
         setUser(user)
+        const { data: membership } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single()
+        const hid = membership?.household_id
+        setHouseholdId(hid)
         // Check if coming from meal planner
         const planData = sessionStorage.getItem('groceryFromPlan')
         if (planData) {
@@ -38,17 +46,17 @@ export default function GroceryPage() {
           const { recipeContext, pantryContext, servings } = JSON.parse(planData)
           generateFromPlan(user.id, recipeContext, pantryContext, servings)
         } else {
-          generateList(user.id)
+          generateList(user.id, hid)
         }
       }
     })
   }, [])
 
-  async function generateList(userId: string) {
+  async function generateList(userId: string, hid: string) {
     setLoading(true)
 
     const [{ data: pantryItems }, { data: profile }] = await Promise.all([
-      supabase.from('pantry_items').select('*').eq('user_id', userId),
+      supabase.from('pantry_items').select('*').eq('household_id', hid),
       supabase.from('profiles').select('unit_system').eq('id', userId).single(),
     ])
 
@@ -222,7 +230,7 @@ export default function GroceryPage() {
           )}
         </div>
         <button
-          onClick={() => generateList(user?.id)}
+          onClick={() => generateList(user?.id, householdId!)}
           disabled={loading}
           style={{
             padding: '8px 14px',

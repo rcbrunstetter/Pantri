@@ -21,21 +21,27 @@ export default function PantryPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
         router.push('/login')
       } else {
         setUser(user)
-        loadPantry(user.id)
+        const { data: membership } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single()
+        const householdId = membership?.household_id
+        loadPantry(householdId)
       }
     })
   }, [])
 
-  async function loadPantry(userId: string) {
+  async function loadPantry(householdId: string) {
     const { data } = await supabase
       .from('pantry_items')
       .select('*')
-      .eq('user_id', userId)
+      .eq('household_id', householdId)
       .order('category', { ascending: true })
 
     setItems(data || [])

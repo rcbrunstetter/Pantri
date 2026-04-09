@@ -51,6 +51,7 @@ export default function PlannerPage() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [meals, setMeals] = useState<Meals>({})
   const [familySize, setFamilySize] = useState(2)
+  const [householdId, setHouseholdId] = useState<string | null>(null)
   const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()))
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -61,37 +62,44 @@ export default function PlannerPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) {
         router.push('/login')
       } else {
         setUser(user)
-        loadData(user.id)
+        const { data: membership } = await supabase
+          .from('household_members')
+          .select('household_id')
+          .eq('user_id', user.id)
+          .single()
+        const hid = membership?.household_id
+        setHouseholdId(hid)
+        loadData(user.id, hid)
       }
     })
   }, [])
 
   useEffect(() => {
-    if (user) loadWeekPlan(user.id)
-  }, [weekStart, user])
+    if (user && householdId) loadWeekPlan(householdId)
+  }, [weekStart, user, householdId])
 
-  async function loadData(userId: string) {
+  async function loadData(userId: string, hid: string) {
     const [{ data: recipesData }, { data: profile }] = await Promise.all([
-      supabase.from('recipes').select('id, title, servings, ingredients').eq('user_id', userId),
+      supabase.from('recipes').select('id, title, servings, ingredients').eq('household_id', hid),
       supabase.from('profiles').select('family_size').eq('id', userId).single(),
     ])
     setRecipes(recipesData || [])
     const fs = profile?.family_size || 2
     setFamilySize(fs)
-    await loadWeekPlan(userId)
+    await loadWeekPlan(hid)
     setLoading(false)
   }
 
-  async function loadWeekPlan(userId: string) {
+  async function loadWeekPlan(hid: string) {
     const { data } = await supabase
       .from('meal_plans')
       .select('*')
-      .eq('user_id', userId)
+      .eq('household_id', hid)
       .eq('week_start', formatDate(weekStart))
       .single()
 
@@ -103,14 +111,14 @@ export default function PlannerPage() {
   }
 
   async function savePlan(updatedMeals: Meals) {
-    if (!user) return
+    if (!householdId) return
     setSaving(true)
     await supabase.from('meal_plans').upsert({
-      user_id: user.id,
+      household_id: householdId,
       week_start: formatDate(weekStart),
       meals: updatedMeals,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,week_start' })
+    }, { onConflict: 'household_id,week_start' })
     setSaving(false)
   }
 
@@ -153,7 +161,7 @@ export default function PlannerPage() {
   }
 
   async function handleGenerateGroceryList() {
-    if (!user) return
+    if (!user || !householdId) return
     setGeneratingList(true)
 
     // Collect all unique recipe IDs in the plan
@@ -179,7 +187,7 @@ export default function PlannerPage() {
     const { data: pantryItems } = await supabase
       .from('pantry_items')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('household_id', householdId)
 
     // Build per-meal recipe context using per-slot servings
     const recipeLines: string[] = []
