@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getHouseholdId } from '@/lib/get-household-id'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest) {
   if (!url && !file) {
     return NextResponse.json({ error: 'Must provide a URL or image' }, { status: 400 })
   }
+
+  const householdId = await getHouseholdId(supabase, userId)
+  if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 
   let messageContent: any[] = []
 
@@ -129,7 +133,7 @@ Rules:
     const { data: recipe, error: dbError } = await supabase
       .from('recipes')
       .insert({
-        user_id: userId,
+        household_id: householdId,
         title: parsed.title,
         description: parsed.description || null,
         ingredients: parsed.ingredients,

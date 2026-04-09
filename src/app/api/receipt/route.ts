@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import convert from 'heic-convert'
+import { getHouseholdId } from '@/lib/get-household-id'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -21,6 +22,9 @@ export async function POST(req: NextRequest) {
   if (!file || !userId) {
     return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 })
   }
+
+  const householdId = await getHouseholdId(supabase, userId)
+  if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 
   const fileBuffer = await file.arrayBuffer()
   const fileName = `${userId}/${Date.now()}.jpg`
@@ -150,7 +154,7 @@ Do not guess or invent items that are not visible on the receipt.`,
       const { upsertPantryItem } = await import('@/lib/pantry-utils')
       for (const item of parsed.items) {
         await upsertPantryItem(supabase, {
-          user_id: userId,
+          household_id: householdId,
           name: item.name,
           quantity: item.quantity || null,
           unit: item.unit || null,

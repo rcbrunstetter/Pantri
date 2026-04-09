@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getHouseholdId } from '@/lib/get-household-id'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -14,8 +15,11 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   const { message, userId, history } = await req.json()
 
+  const householdId = await getHouseholdId(supabase, userId)
+  if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
+
   const [{ data: pantryItems }, { data: profile }] = await Promise.all([
-    supabase.from('pantry_items').select('*').eq('user_id', userId),
+    supabase.from('pantry_items').select('*').eq('household_id', householdId),
     supabase.from('profiles').select('unit_system, family_size').eq('id', userId).single(),
   ])
 
@@ -130,7 +134,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
         const { upsertPantryItem } = await import('@/lib/pantry-utils')
         for (const item of updates.add) {
           await upsertPantryItem(supabase, {
-            user_id: userId,
+            household_id: householdId,
             name: item.name,
             quantity: item.quantity || null,
             unit: item.unit || null,
@@ -144,7 +148,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
           await supabase
             .from('pantry_items')
             .delete()
-            .eq('user_id', userId)
+            .eq('household_id', householdId)
             .ilike('name', itemName)
         }
       }
@@ -154,7 +158,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
           const { data: existing } = await supabase
             .from('pantry_items')
             .select('id')
-            .eq('user_id', userId)
+            .eq('household_id', householdId)
             .ilike('name', item.name)
             .single()
 
@@ -204,7 +208,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
         recipe.instructions = instructions.replace(/\\n/g, '\n')
       }
       await supabase.from('recipes').insert({
-        user_id: userId,
+        household_id: householdId,
         title: recipe.title,
         description: recipe.description || null,
         ingredients: recipe.ingredients,

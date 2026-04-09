@@ -1,7 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
 
 interface PantryItemInput {
-  user_id: string
+  household_id: string
   name: string
   quantity: string | null
   unit: string | null
@@ -13,7 +13,7 @@ export async function upsertPantryItem(supabase: SupabaseClient, item: PantryIte
   const { data: existing } = await supabase
     .from('pantry_items')
     .select('*')
-    .eq('user_id', item.user_id)
+    .eq('household_id', item.household_id)
     .ilike('name', item.name)
     .single()
 
