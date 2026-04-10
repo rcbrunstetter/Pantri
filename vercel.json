@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "src/app/api/receipt/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/recipe-import/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
