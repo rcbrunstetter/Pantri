@@ -176,6 +176,8 @@ export default function HomePage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
+    await ensureHousehold(user.id)
+
     setUploading(true)
 
     const uploadingMessage: Message = {
