@@ -20,11 +20,15 @@ export async function POST(req: NextRequest) {
   const userId = formData.get('userId') as string
 
   if (!file || !userId) {
-    return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 })
+    return NextResponse.json({
+      error: 'Missing file or userId',
+      hasFile: !!file,
+      hasUserId: !!userId,
+    }, { status: 400 })
   }
 
   const householdId = await getHouseholdId(supabase, userId)
-  if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
+  if (!householdId) return NextResponse.json({ error: 'No household found', userId }, { status: 400 })
 
   const fileBuffer = await file.arrayBuffer()
   const fileName = `${userId}/${Date.now()}.jpg`
