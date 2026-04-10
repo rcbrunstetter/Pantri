@@ -147,6 +147,20 @@ export default function HomePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Start reading immediately — before any await — so iOS Safari can't revoke the File
+    const fileDataPromise = new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const result = event.target?.result
+        if (typeof result === 'string') resolve(result)
+        else reject(new Error('FileReader did not return a string'))
+      }
+      reader.onerror = (event) => {
+        reject(new Error('FileReader error: ' + event.target?.error?.message))
+      }
+      reader.readAsDataURL(file)
+    })
+
     const currentUser = user || (await supabase.auth.getSession()).data.session?.user
     if (!currentUser) return
     const userId = currentUser.id
@@ -159,21 +173,7 @@ export default function HomePage() {
     }])
 
     try {
-      const fileData = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const result = event.target?.result
-          if (typeof result === 'string') {
-            resolve(result)
-          } else {
-            reject(new Error('FileReader did not return a string'))
-          }
-        }
-        reader.onerror = (event) => {
-          reject(new Error('FileReader error: ' + event.target?.error?.message))
-        }
-        reader.readAsDataURL(file)
-      })
+      const fileData = await fileDataPromise
 
       const response = await fetch('/api/receipt', {
         method: 'POST',
