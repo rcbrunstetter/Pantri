@@ -161,15 +161,22 @@ export default function HomePage() {
     setMessages(prev => [...prev, uploadingMessage])
 
     try {
-      const arrayBuffer = await file.arrayBuffer()
-      const blob = new Blob([arrayBuffer], { type: file.type || 'image/jpeg' })
-      const formData = new FormData()
-      formData.append('file', blob, file.name || 'receipt.jpg')
-      formData.append('userId', userId)
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
 
       const response = await fetch('/api/receipt', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: base64,
+          fileName: file.name || 'receipt.jpg',
+          fileType: file.type || 'image/jpeg',
+          userId,
+        }),
       })
 
       const data = await response.json()

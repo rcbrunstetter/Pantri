@@ -15,40 +15,36 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const formData = await req.formData()
-  const file = formData.get('file') as File
-  const userId = formData.get('userId') as string
+  const body = await req.json()
+  const { fileData, fileName, fileType, userId } = body
 
-  if (!file || !userId) {
-    return NextResponse.json({
-      error: 'Missing file or userId',
-      hasFile: !!file,
-      hasUserId: !!userId,
-    }, { status: 400 })
+  if (!fileData || !userId) {
+    return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 })
   }
 
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found', userId }, { status: 400 })
 
-  const fileBuffer = await file.arrayBuffer()
-  const fileName = `${userId}/${Date.now()}.jpg`
+  const base64Data = fileData.split(',')[1]
+  const fileBuffer = Buffer.from(base64Data, 'base64')
+  const fileName2 = `${userId}/${Date.now()}.jpg`
 
   const isHeic = (
-    file.type === 'image/heic' ||
-    file.type === 'image/heif' ||
-    /\.heic$/i.test(file.name) ||
-    /\.heif$/i.test(file.name)
+    fileType === 'image/heic' ||
+    fileType === 'image/heif' ||
+    /\.heic$/i.test(fileName) ||
+    /\.heif$/i.test(fileName)
   )
 
   let inputBuffer: Buffer
   if (isHeic) {
     inputBuffer = Buffer.from(await convert({
-      buffer: Buffer.from(fileBuffer),
+      buffer: fileBuffer,
       format: 'JPEG',
       quality: 0.9,
     }))
   } else {
-    inputBuffer = Buffer.from(fileBuffer)
+    inputBuffer = fileBuffer
   }
 
   // Convert any image format (including HEIC) to JPEG using sharp
@@ -67,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Upload converted image to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from('receipts')
-    .upload(fileName, convertedBuffer, { contentType: 'image/jpeg' })
+    .upload(fileName2, convertedBuffer, { contentType: 'image/jpeg' })
 
   if (uploadError) {
     console.error('Upload error:', uploadError)
@@ -163,7 +159,7 @@ Do not guess or invent items that are not visible on the receipt.`,
 
       await supabase.from('receipts').insert({
         user_id: userId,
-        image_url: fileName,
+        image_url: fileName2,
         parsed_data: parsed,
       })
     }
