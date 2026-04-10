@@ -161,8 +161,10 @@ export default function HomePage() {
     setMessages(prev => [...prev, uploadingMessage])
 
     try {
+      const arrayBuffer = await file.arrayBuffer()
+      const blob = new Blob([arrayBuffer], { type: file.type || 'image/jpeg' })
       const formData = new FormData()
-      formData.append('file', file)
+      formData.append('file', blob, file.name || 'receipt.jpg')
       formData.append('userId', userId)
 
       const response = await fetch('/api/receipt', {
