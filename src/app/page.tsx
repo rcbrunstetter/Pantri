@@ -46,6 +46,11 @@ export default function HomePage() {
           loadWelcome(session.user.id)
         }
         ensureHousehold(session.user.id)
+        const prefill = sessionStorage.getItem('pantri-prefill')
+        if (prefill) {
+          sessionStorage.removeItem('pantri-prefill')
+          setInput(prefill)
+        }
       }
     }
     checkAuth()
@@ -324,6 +329,7 @@ export default function HomePage() {
             }}>
               {[
                 { label: 'Recipe Book', action: () => { router.push('/recipes'); setMenuOpen(false) } },
+                { label: 'Finances', action: () => { router.push('/finances'); setMenuOpen(false) } },
                 { label: 'Settings', action: () => { router.push('/settings'); setMenuOpen(false) } },
                 { label: 'Log out', action: () => { handleLogout(); setMenuOpen(false) }, danger: true },
               ].map((item, index, arr) => (

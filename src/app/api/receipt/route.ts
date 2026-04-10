@@ -162,6 +162,16 @@ Do not guess or invent items that are not visible on the receipt.`,
         image_url: storageFileName,
         parsed_data: parsed,
       })
+
+      const totalAmount = parsed.items?.reduce((sum: number, item: any) => sum + (item.price || 0), 0) || 0
+      if (totalAmount > 0) {
+        await supabase.from('spending_records').insert({
+          household_id: householdId,
+          amount: totalAmount,
+          store: parsed.store || null,
+          source: 'receipt',
+        })
+      }
     }
 
     return NextResponse.json({
