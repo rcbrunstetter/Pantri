@@ -19,12 +19,7 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [suggestions] = useState([
-    'What can I make tonight?',
-    'Generate my grocery list',
-    'What am I running low on?',
-    'Plan my meals this week',
-  ])
+  const [suggestions, setSuggestions] = useState<string[]>([])
   const [welcomeMessage, setWelcomeMessage] = useState('')
   const [welcomeLoading, setWelcomeLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -63,17 +58,58 @@ export default function HomePage() {
   async function loadWelcome(userId: string) {
     setWelcomeLoading(true)
     await ensureHousehold(userId)
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: 'Generate a warm, friendly 1-2 sentence welcome message for someone opening their kitchen app. Be warm and encouraging. No pantry counts, no meal suggestions, no lists, no emojis. Just a friendly greeting that makes them feel good about cooking.',
-        userId,
-        history: [],
+
+    // Check if we have cached suggestions from today
+    const cacheKey = 'pantri-suggestions'
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+      const { suggestions: cachedSuggestions, date } = JSON.parse(cached)
+      const today = new Date().toDateString()
+      if (date === today && cachedSuggestions.length > 0) {
+        setSuggestions(cachedSuggestions)
+        setWelcomeMessage('')
+        setWelcomeLoading(false)
+        return
+      }
+    }
+
+    // Generate fresh suggestions and welcome
+    const [welcomeRes, suggestionsRes] = await Promise.all([
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Generate a warm, friendly 1-2 sentence welcome message for someone opening their kitchen app. Be warm and encouraging. No pantry counts, no meal suggestions, no lists, no emojis. Just a friendly greeting.',
+          userId,
+          history: [],
+        }),
       }),
-    })
-    const data = await response.json()
-    setWelcomeMessage(data.reply || 'Welcome back! What are we cooking today?')
+      fetch('/api/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      }),
+    ])
+
+    const welcomeData = await welcomeRes.json()
+    const suggestionsData = await suggestionsRes.json()
+
+    const newSuggestions = suggestionsData.suggestions || [
+      'What can I make tonight?',
+      'Generate my grocery list',
+      'What am I running low on?',
+      'Plan my meals this week',
+    ]
+
+    setWelcomeMessage(welcomeData.reply || 'Welcome back! What are we cooking today?')
+    setSuggestions(newSuggestions)
+
+    // Cache suggestions for today
+    localStorage.setItem(cacheKey, JSON.stringify({
+      suggestions: newSuggestions,
+      date: new Date().toDateString(),
+    }))
+
     setWelcomeLoading(false)
   }
 

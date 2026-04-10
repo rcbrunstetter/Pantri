@@ -243,5 +243,52 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
     .replace(/<recipe_save>[\s\S]*?<\/recipe_save>/g, '')
     .trim()
 
+  // Quietly extract memories from this conversation
+  try {
+    const { data: existingMemories } = await supabase
+      .from('household_memory')
+      .select('memory')
+      .eq('household_id', householdId)
+
+    const memoryContext = existingMemories?.map(m => m.memory).join('\n') || 'No memories yet.'
+
+    const memoryResponse = await anthropic.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `Based on this kitchen conversation, extract any useful long-term memories about this household's habits, preferences, or patterns. Only extract clear, specific facts — not guesses.
+
+Current memories already stored:
+${memoryContext}
+
+Recent conversation:
+User: ${message}
+Assistant: ${cleanReply}
+
+Return ONLY a JSON array of new memory strings to store, or an empty array if nothing new is worth remembering. Each memory should be a single clear sentence. Do not duplicate existing memories. Examples of good memories: "Buys chicken weekly", "Family dislikes cilantro", "Usually cooks dinner for 4", "Shops at Mercator on Saturdays".
+
+Return format: ["memory 1", "memory 2"] or []`
+      }],
+    })
+
+    const memoryRaw = memoryResponse.content[0].type === 'text' ? memoryResponse.content[0].text : '[]'
+    const memoryClean = memoryRaw.replace(/```json|```/g, '').trim()
+    const newMemories: string[] = JSON.parse(memoryClean)
+
+    if (newMemories.length > 0) {
+      await supabase.from('household_memory').insert(
+        newMemories.map(memory => ({
+          household_id: householdId,
+          memory,
+          category: 'general',
+        }))
+      )
+    }
+  } catch (e) {
+    // Memory extraction is non-critical, fail silently
+    console.error('Memory extraction failed:', e)
+  }
+
   return NextResponse.json({ reply: cleanReply })
 }
