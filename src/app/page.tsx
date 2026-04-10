@@ -152,19 +152,23 @@ export default function HomePage() {
     const userId = currentUser.id
 
     setUploading(true)
-
-    const uploadingMessage: Message = {
+    setMessages(prev => [...prev, {
       id: Date.now().toString(),
       role: 'user',
       content: 'Receipt uploaded — reading it now...',
-    }
-    setMessages(prev => [...prev, uploadingMessage])
+    }])
 
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
+      const fileData = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            resolve(reader.result)
+          } else {
+            reject(new Error('Failed to read file'))
+          }
+        }
+        reader.onerror = () => reject(reader.error)
         reader.readAsDataURL(file)
       })
 
@@ -172,12 +176,17 @@ export default function HomePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileData: base64,
+          fileData,
           fileName: file.name || 'receipt.jpg',
           fileType: file.type || 'image/jpeg',
           userId,
         }),
       })
+
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.error || 'Server error')
+      }
 
       const data = await response.json()
 
@@ -190,15 +199,11 @@ export default function HomePage() {
         }).join(', ')
 
         const store = data.store ? ` from ${data.store}` : ''
-        const replyContent = `Got it! I found ${data.items.length} items${store} on your receipt and added them to your pantry: ${itemList}.`
-
-        const replyMessage: Message = {
+        setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: replyContent,
-        }
-
-        setMessages(prev => [...prev, replyMessage])
+          content: `Got it! I found ${data.items.length} items${store} on your receipt and added them to your pantry: ${itemList}.`,
+        }])
       } else {
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
