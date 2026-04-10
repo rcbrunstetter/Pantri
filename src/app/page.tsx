@@ -11,6 +11,8 @@ interface Message {
 }
 
 export default function HomePage() {
+  const SESSION_MESSAGES_KEY = 'pantri-session-messages'
+
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -40,7 +42,14 @@ export default function HomePage() {
         router.push('/login')
       } else {
         setUser(session.user)
-        loadWelcome(session.user.id)
+        const saved = sessionStorage.getItem(SESSION_MESSAGES_KEY)
+        if (saved) {
+          setMessages(JSON.parse(saved))
+          setWelcomeLoading(false)
+          setWelcomeMessage('')
+        } else {
+          loadWelcome(session.user.id)
+        }
         ensureHousehold(session.user.id)
       }
     }
@@ -53,48 +62,18 @@ export default function HomePage() {
 
   async function loadWelcome(userId: string) {
     setWelcomeLoading(true)
-
-    const supabaseServer = createClient()
-    const { data: membership } = await supabaseServer
-      .from('household_members')
-      .select('household_id')
-      .eq('user_id', userId)
-      .single()
-
-    const householdId = membership?.household_id
-
-    let pantryCount = 0
-    let pantryContext = 'The pantry is empty.'
-
-    if (householdId) {
-      const { data: pantryItems } = await supabaseServer
-        .from('pantry_items')
-        .select('name, quantity, unit')
-        .eq('household_id', householdId)
-
-      pantryCount = pantryItems?.length || 0
-
-      if (pantryItems && pantryItems.length > 0) {
-        pantryContext = `Current pantry (${pantryCount} items):\n${pantryItems.map(item =>
-          `- ${item.name}${item.quantity ? ` (${item.quantity}${item.unit ? ' ' + item.unit : ''})` : ''}`
-        ).join('\n')}`
-      }
-    }
-
     await ensureHousehold(userId)
-
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        message: `Generate a short friendly welcome message for the user opening their kitchen app. Include: 1) A warm one-line greeting, 2) A note about how many items are in their pantry (${pantryCount} items), 3) One specific meal idea based on what they have. Keep it to 3 short sentences maximum. No lists, no bullet points, no emojis.`,
+        message: 'Generate a warm, friendly 1-2 sentence welcome message for someone opening their kitchen app. Be warm and encouraging. No pantry counts, no meal suggestions, no lists, no emojis. Just a friendly greeting that makes them feel good about cooking.',
         userId,
         history: [],
       }),
     })
-
     const data = await response.json()
-    setWelcomeMessage(data.reply || `You have ${pantryCount} items in your pantry. What would you like to do today?`)
+    setWelcomeMessage(data.reply || 'Welcome back! What are we cooking today?')
     setWelcomeLoading(false)
   }
 
@@ -131,6 +110,8 @@ export default function HomePage() {
       }
 
       setMessages(prev => [...prev, assistantMessage])
+      const updated = [...messages, userMessage, assistantMessage]
+      sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(updated))
 
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -149,11 +130,12 @@ export default function HomePage() {
 
     setUploading(true)
 
-    setMessages(prev => [...prev, {
+    const uploadingMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: 'Receipt uploaded — reading it now...',
-    }])
+    }
+    setMessages(prev => [...prev, uploadingMessage])
 
     try {
       const formData = new FormData()
@@ -181,11 +163,13 @@ export default function HomePage() {
         }).join(', ')
 
         const store = data.store ? ` from ${data.store}` : ''
-        setMessages(prev => [...prev, {
+        const replyMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content: `Got it! I found ${data.items.length} items${store} on your receipt and added them to your pantry: ${itemList}.`,
-        }])
+        }
+        setMessages(prev => [...prev, replyMessage])
+        sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify([...messages, uploadingMessage, replyMessage]))
       } else {
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
@@ -342,30 +326,34 @@ export default function HomePage() {
         gap: '12px',
       }}>
         {/* Welcome card */}
-        <div style={{
-          backgroundColor: '#fff',
-          borderRadius: '18px',
-          padding: '16px 18px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-          alignSelf: 'flex-start',
-          maxWidth: '82%',
-        }}>
-          {welcomeLoading ? (
-            <p style={{ color: '#999', fontSize: '15px', margin: 0 }}>Good to see you...</p>
-          ) : (
-            <span style={{ fontSize: '15px', lineHeight: '1.5', color: '#1a1a1a' }}
-              dangerouslySetInnerHTML={{ __html: formatMessage(welcomeMessage) }}
-            />
-          )}
-        </div>
+        {messages.length === 0 && (
+          <div style={{
+            backgroundColor: '#fff',
+            borderRadius: '18px',
+            padding: '16px 18px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+            alignSelf: 'flex-start',
+            maxWidth: '82%',
+          }}>
+            {welcomeLoading ? (
+              <p style={{ color: '#999', fontSize: '15px', margin: 0 }}>Good to see you...</p>
+            ) : (
+              <span style={{ fontSize: '15px', lineHeight: '1.5', color: '#1a1a1a' }}
+                dangerouslySetInnerHTML={{ __html: formatMessage(welcomeMessage) }}
+              />
+            )}
+          </div>
+        )}
 
         {/* Suggestion chips */}
-        {!welcomeLoading && (
+        {!welcomeLoading && messages.length === 0 && (
           <div style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px',
-            alignSelf: 'flex-start',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '8px 0',
+            width: '100%',
           }}>
             {suggestions.map(suggestion => (
               <button
@@ -375,15 +363,17 @@ export default function HomePage() {
                   setTimeout(() => handleSend(), 50)
                 }}
                 style={{
-                  padding: '8px 14px',
-                  fontSize: '14px',
+                  padding: '12px 24px',
+                  fontSize: '15px',
                   fontWeight: '500',
                   color: '#2d6a4f',
-                  backgroundColor: '#f0f7f4',
-                  border: '1px solid #d4eddf',
-                  borderRadius: '20px',
+                  backgroundColor: '#fff',
+                  border: '1.5px solid #d4eddf',
+                  borderRadius: '14px',
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap',
+                  width: '80%',
+                  textAlign: 'center',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 }}
               >
                 {suggestion}
