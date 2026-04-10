@@ -159,17 +159,16 @@ export default function HomePage() {
     }])
 
     try {
+      const copied = new File([await file.arrayBuffer()], file.name || 'receipt.jpg', { type: file.type || 'image/jpeg' })
+
       const fileData = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            resolve(reader.result)
-          } else {
-            reject(new Error('Failed to read file'))
-          }
+          if (typeof reader.result === 'string') resolve(reader.result)
+          else reject(new Error('Failed to read file'))
         }
         reader.onerror = () => reject(reader.error)
-        reader.readAsDataURL(file)
+        reader.readAsDataURL(copied)
       })
 
       const response = await fetch('/api/receipt', {
@@ -472,7 +471,8 @@ export default function HomePage() {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/heic,image/heif,image/*"
+            capture="environment"
             onChange={handleReceiptUpload}
             style={{ display: 'none' }}
           />
