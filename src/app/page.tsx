@@ -29,19 +29,15 @@ export default function HomePage() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Small delay to allow Supabase to finish writing session to storage
-      await new Promise(resolve => setTimeout(resolve, 100))
-
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-      } else {
+
+      if (session) {
         setUser(session.user)
         const saved = sessionStorage.getItem(SESSION_MESSAGES_KEY)
         if (saved) {
           setMessages(JSON.parse(saved))
           setWelcomeLoading(false)
-          setWelcomeMessage('')
+          setWelcomeMessage('Welcome back! Here is what is on your mind today.')
         } else {
           loadWelcome(session.user.id)
         }
@@ -51,6 +47,17 @@ export default function HomePage() {
           sessionStorage.removeItem('pantri-prefill')
           setInput(prefill)
         }
+        return
+      }
+
+      // No session found — try refreshing once before redirecting
+      const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+      if (refreshedSession) {
+        setUser(refreshedSession.user)
+        loadWelcome(refreshedSession.user.id)
+        ensureHousehold(refreshedSession.user.id)
+      } else {
+        router.push('/login')
       }
     }
     checkAuth()
