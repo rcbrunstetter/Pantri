@@ -147,21 +147,8 @@ export default function HomePage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
-    // Start reading immediately before any await so iOS Safari cannot revoke the File object
-    const fileDataPromise = new Promise<string>((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const result = event.target?.result
-        if (typeof result === 'string') resolve(result)
-        else reject(new Error('FileReader did not return a string'))
-      }
-      reader.onerror = (event) => {
-        reject(new Error('FileReader error: ' + String(event.target?.error)))
-      }
-      reader.readAsDataURL(file)
-    })
-
     setUploading(true)
+
     setMessages(prev => [...prev, {
       id: Date.now().toString(),
       role: 'user',
@@ -169,17 +156,13 @@ export default function HomePage() {
     }])
 
     try {
-      const fileData = await fileDataPromise
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('userId', user.id)
 
       const response = await fetch('/api/receipt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileData,
-          fileName: file.name || 'receipt.jpg',
-          fileType: file.type || 'image/jpeg',
-          userId: user.id,
-        }),
+        body: formData,
       })
 
       if (!response.ok) {
