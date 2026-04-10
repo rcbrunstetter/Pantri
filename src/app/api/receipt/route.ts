@@ -95,7 +95,8 @@ First, read every line of text you can see on the receipt exactly as written.
 Then identify only the food and grocery items purchased.
 
 Explicitly ignore:
-- Taxes, totals, subtotals, payment info
+- Taxes, subtotals, payment method info
+- But DO extract the receipt total amount paid
 - Store address, cashier info, receipt numbers
 - Shopping bags, carriers, packaging (e.g. "vrečka", "bag", "sack")
 - Printer cartridges, ink, office supplies
@@ -122,11 +123,14 @@ For each food item:
 Return ONLY valid JSON in this exact format with no other text:
 {
   "store": "store name",
+  "total": 42.50,
   "raw_lines": ["list every line of text you see on the receipt"],
   "items": [
     {"name": "Whole Milk", "quantity": "2", "unit": "gallon", "category": "dairy"}
   ]
 }
+
+- Extract the total amount paid from the receipt and put it in the "total" field as a number. If you cannot find a total, set it to null.
 
 Categories: produce, dairy, meat, bakery, frozen, pantry, beverages, snacks, household, other.
 If you cannot clearly read the receipt, return {"store": null, "raw_lines": [], "items": []}
@@ -163,8 +167,8 @@ Do not guess or invent items that are not visible on the receipt.`,
         parsed_data: parsed,
       })
 
-      const totalAmount = parsed.items?.reduce((sum: number, item: any) => sum + (item.price || 0), 0) || 0
-      if (totalAmount > 0) {
+      const totalAmount = parsed.total || null
+      if (totalAmount && totalAmount > 0) {
         await supabase.from('spending_records').insert({
           household_id: householdId,
           amount: totalAmount,
