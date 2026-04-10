@@ -72,7 +72,7 @@ export default function HomePage() {
       const today = new Date().toDateString()
       if (date === today && cachedSuggestions.length > 0) {
         setSuggestions(cachedSuggestions)
-        setWelcomeMessage('Welcome back! Here is what is on your mind today.')
+        setWelcomeMessage('Welcome back! How would you like to get started today?')
         setWelcomeLoading(false)
         return
       }
