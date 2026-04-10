@@ -17,6 +17,14 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [suggestions] = useState([
+    'What can I make tonight?',
+    'Generate my grocery list',
+    'What am I running low on?',
+    'Plan my meals this week',
+  ])
+  const [welcomeMessage, setWelcomeMessage] = useState('')
+  const [welcomeLoading, setWelcomeLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -32,7 +40,7 @@ export default function HomePage() {
         router.push('/login')
       } else {
         setUser(session.user)
-        loadMessages(session.user.id)
+        loadWelcome(session.user.id)
         ensureHousehold(session.user.id)
       }
     }
@@ -43,27 +51,49 @@ export default function HomePage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function loadMessages(userId: string) {
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: true })
-      .limit(50)
+  async function loadWelcome(userId: string) {
+    setWelcomeLoading(true)
 
-    if (data && data.length > 0) {
-      setMessages(data.map(m => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-      })))
-    } else {
-      setMessages([{
-        id: 'welcome',
-        role: 'assistant',
-        content: "Hi! I'm Pantri. Tell me what's in your kitchen, what you just bought, or what you cooked — and I'll keep track of everything for you. You can also upload a receipt photo and I'll read it automatically.",
-      }])
+    const supabaseServer = createClient()
+    const { data: membership } = await supabaseServer
+      .from('household_members')
+      .select('household_id')
+      .eq('user_id', userId)
+      .single()
+
+    const householdId = membership?.household_id
+
+    let pantryCount = 0
+    let pantryContext = 'The pantry is empty.'
+
+    if (householdId) {
+      const { data: pantryItems } = await supabaseServer
+        .from('pantry_items')
+        .select('name, quantity, unit')
+        .eq('household_id', householdId)
+
+      pantryCount = pantryItems?.length || 0
+
+      if (pantryItems && pantryItems.length > 0) {
+        pantryContext = `Current pantry (${pantryCount} items):\n${pantryItems.map(item =>
+          `- ${item.name}${item.quantity ? ` (${item.quantity}${item.unit ? ' ' + item.unit : ''})` : ''}`
+        ).join('\n')}`
+      }
     }
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `Generate a short friendly welcome message for the user opening their kitchen app. Include: 1) A warm one-line greeting, 2) A note about how many items are in their pantry (${pantryCount} items), 3) One specific meal idea based on what they have. Keep it to 3 short sentences maximum. No lists, no bullet points, no emojis.`,
+        userId,
+        history: [],
+      }),
+    })
+
+    const data = await response.json()
+    setWelcomeMessage(data.reply || `You have ${pantryCount} items in your pantry. What would you like to do today?`)
+    setWelcomeLoading(false)
   }
 
   async function handleSend() {
@@ -99,11 +129,6 @@ export default function HomePage() {
       }
 
       setMessages(prev => [...prev, assistantMessage])
-
-      await supabase.from('chat_messages').insert([
-        { user_id: user.id, role: 'user', content: userMessage.content },
-        { user_id: user.id, role: 'assistant', content: data.reply },
-      ])
 
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -159,11 +184,6 @@ export default function HomePage() {
         }
 
         setMessages(prev => [...prev, replyMessage])
-
-        await supabase.from('chat_messages').insert([
-          { user_id: user.id, role: 'user', content: uploadingMessage.content },
-          { user_id: user.id, role: 'assistant', content: replyContent },
-        ])
       } else {
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),
@@ -335,6 +355,58 @@ export default function HomePage() {
         flexDirection: 'column',
         gap: '12px',
       }}>
+        {/* Welcome card */}
+        <div style={{
+          backgroundColor: '#fff',
+          borderRadius: '18px',
+          padding: '16px 18px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+          alignSelf: 'flex-start',
+          maxWidth: '82%',
+        }}>
+          {welcomeLoading ? (
+            <p style={{ color: '#999', fontSize: '15px', margin: 0 }}>Good to see you...</p>
+          ) : (
+            <span style={{ fontSize: '15px', lineHeight: '1.5', color: '#1a1a1a' }}
+              dangerouslySetInnerHTML={{ __html: formatMessage(welcomeMessage) }}
+            />
+          )}
+        </div>
+
+        {/* Suggestion chips */}
+        {!welcomeLoading && (
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '8px',
+            alignSelf: 'flex-start',
+          }}>
+            {suggestions.map(suggestion => (
+              <button
+                key={suggestion}
+                onClick={() => {
+                  setInput(suggestion)
+                  setTimeout(() => handleSend(), 50)
+                }}
+                style={{
+                  padding: '8px 14px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#2d6a4f',
+                  backgroundColor: '#f0f7f4',
+                  border: '1px solid #d4eddf',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Conversation messages (sent during this session) */}
         {messages.map(message => (
           <div
             key={message.id}
