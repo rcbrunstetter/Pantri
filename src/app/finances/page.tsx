@@ -23,6 +23,11 @@ export default function FinancesPage() {
   const [store, setStore] = useState('')
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [weeklyBudgetGoal, setWeeklyBudgetGoal] = useState(0)
+  const [monthlyBudgetGoal, setMonthlyBudgetGoal] = useState(0)
+  const [editingBudget, setEditingBudget] = useState(false)
+  const [budgetInput, setBudgetInput] = useState('')
+  const [budgetType, setBudgetType] = useState<'weekly' | 'monthly'>('weekly')
   const router = useRouter()
   const supabase = createClient()
 
@@ -50,6 +55,17 @@ export default function FinancesPage() {
     }
 
     setHouseholdId(membership.household_id)
+
+    const { data: profile } = await supabase
+      .from('household_profiles')
+      .select('weekly_budget')
+      .eq('household_id', membership.household_id)
+      .single()
+
+    if (profile?.weekly_budget) {
+      setWeeklyBudgetGoal(profile.weekly_budget)
+      setMonthlyBudgetGoal(profile.weekly_budget * 4)
+    }
 
     const { data } = await supabase
       .from('spending_records')
@@ -95,6 +111,26 @@ export default function FinancesPage() {
     setRecords(prev => prev.filter(r => r.id !== id))
   }
 
+  async function saveBudget() {
+    if (!householdId) return
+    const value = parseFloat(budgetInput)
+    if (isNaN(value)) return
+
+    const weeklyValue = budgetType === 'weekly' ? value : value / 4
+    const monthlyValue = budgetType === 'monthly' ? value : value * 4
+
+    await supabase.from('household_profiles').upsert({
+      household_id: householdId,
+      weekly_budget: weeklyValue,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'household_id' })
+
+    setWeeklyBudgetGoal(weeklyValue)
+    setMonthlyBudgetGoal(monthlyValue)
+    setEditingBudget(false)
+    setBudgetInput('')
+  }
+
   const now = new Date()
   const startOfWeek = new Date(now)
   startOfWeek.setDate(now.getDate() - now.getDay())
@@ -110,9 +146,8 @@ export default function FinancesPage() {
     .filter(r => new Date(r.spent_at) >= startOfMonth)
     .reduce((sum, r) => sum + r.amount, 0)
 
-  const budget = 150 // TODO: pull from food profile
-  const weeklyBudget = budget
-  const weeklyPercent = Math.min((weeklyTotal / weeklyBudget) * 100, 100)
+  const weeklyPercent = weeklyBudgetGoal > 0 ? Math.min((weeklyTotal / weeklyBudgetGoal) * 100, 100) : 0
+  const monthlyPercent = monthlyBudgetGoal > 0 ? Math.min((monthlyTotal / monthlyBudgetGoal) * 100, 100) : 0
 
   function formatDate(dateStr: string) {
     const date = new Date(dateStr)
@@ -194,23 +229,57 @@ export default function FinancesPage() {
                 </div>
               </div>
 
-              {weeklyBudget > 0 && (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontSize: '13px', color: '#999' }}>Weekly budget</span>
-                    <span style={{ fontSize: '13px', color: '#999' }}>${weeklyBudget}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {weeklyBudgetGoal > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '13px', color: '#999' }}>Weekly budget</span>
+                      <span style={{ fontSize: '13px', color: '#999' }}>${weeklyBudgetGoal.toFixed(0)}</span>
+                    </div>
+                    <div style={{ backgroundColor: '#f0f0f0', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${weeklyPercent}%`,
+                        backgroundColor: weeklyPercent > 90 ? '#cc4444' : weeklyPercent > 70 ? '#f0a500' : '#2d6a4f',
+                        borderRadius: '6px',
+                        transition: 'width 0.3s',
+                      }} />
+                    </div>
                   </div>
-                  <div style={{ backgroundColor: '#f0f0f0', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      width: `${weeklyPercent}%`,
-                      backgroundColor: weeklyPercent > 90 ? '#cc4444' : weeklyPercent > 70 ? '#f0a500' : '#2d6a4f',
-                      borderRadius: '6px',
-                      transition: 'width 0.3s',
-                    }} />
+                )}
+                {monthlyBudgetGoal > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '13px', color: '#999' }}>Monthly budget</span>
+                      <span style={{ fontSize: '13px', color: '#999' }}>${monthlyBudgetGoal.toFixed(0)}</span>
+                    </div>
+                    <div style={{ backgroundColor: '#f0f0f0', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${monthlyPercent}%`,
+                        backgroundColor: monthlyPercent > 90 ? '#cc4444' : monthlyPercent > 70 ? '#f0a500' : '#2d6a4f',
+                        borderRadius: '6px',
+                        transition: 'width 0.3s',
+                      }} />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+                <button
+                  onClick={() => setEditingBudget(true)}
+                  style={{
+                    padding: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#2d6a4f',
+                    backgroundColor: 'transparent',
+                    border: '1.5px dashed #c8e6d8',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {weeklyBudgetGoal > 0 ? 'Edit budget goals' : 'Set budget goals'}
+                </button>
+              </div>
             </div>
 
             {/* Ask Pantri button */}
@@ -237,15 +306,25 @@ export default function FinancesPage() {
 
             {/* Add record modal */}
             {adding && (
-              <div style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                zIndex: 50,
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-              }}>
+              <div
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) {
+                    setAdding(false)
+                    setAmount('')
+                    setStore('')
+                    setNotes('')
+                  }
+                }}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  zIndex: 50,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                }}
+              >
                 <div style={{
                   backgroundColor: '#fff',
                   borderRadius: '24px 24px 0 0',
@@ -324,6 +403,111 @@ export default function FinancesPage() {
                       </button>
                       <button
                         onClick={() => { setAdding(false); setAmount(''); setStore(''); setNotes('') }}
+                        style={{
+                          padding: '14px 20px',
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          color: '#666',
+                          backgroundColor: '#f5f5f5',
+                          border: 'none',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Budget goal modal */}
+            {editingBudget && (
+              <div
+                onClick={(e) => { if (e.target === e.currentTarget) setEditingBudget(false) }}
+                style={{
+                  position: 'fixed',
+                  inset: 0,
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  zIndex: 50,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                }}
+              >
+                <div style={{
+                  backgroundColor: '#fff',
+                  borderRadius: '24px 24px 0 0',
+                  padding: '24px 20px',
+                  width: '100%',
+                  maxWidth: '600px',
+                }}>
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#1a1a1a', margin: '0 0 20px 0' }}>Set Budget Goal</h2>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      {(['weekly', 'monthly'] as const).map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setBudgetType(type)}
+                          style={{
+                            flex: 1,
+                            padding: '10px',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            borderRadius: '10px',
+                            border: budgetType === type ? '2px solid #2d6a4f' : '2px solid #f0f0f0',
+                            backgroundColor: budgetType === type ? '#f0f7f4' : '#fff',
+                            color: budgetType === type ? '#2d6a4f' : '#666',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '20px', fontWeight: '600', color: '#1a1a1a' }}>$</span>
+                      <input
+                        autoFocus
+                        type="number"
+                        placeholder={budgetType === 'weekly' ? 'e.g. 150' : 'e.g. 600'}
+                        value={budgetInput}
+                        onChange={e => setBudgetInput(e.target.value)}
+                        style={{
+                          flex: 1,
+                          padding: '12px 14px',
+                          fontSize: '20px',
+                          fontWeight: '600',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: '12px',
+                          outline: 'none',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                      <span style={{ fontSize: '14px', color: '#999' }}>/ {budgetType}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                      <button
+                        onClick={saveBudget}
+                        disabled={!budgetInput}
+                        style={{
+                          flex: 1,
+                          padding: '14px',
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          color: '#fff',
+                          backgroundColor: '#2d6a4f',
+                          border: 'none',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          opacity: !budgetInput ? 0.6 : 1,
+                        }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => { setEditingBudget(false); setBudgetInput('') }}
                         style={{
                           padding: '14px 20px',
                           fontSize: '15px',
