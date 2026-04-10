@@ -145,9 +145,9 @@ export default function HomePage() {
 
   async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file || !user) return
 
-    // Start reading immediately — before any await — so iOS Safari can't revoke the File
+    // Start reading immediately before any await so iOS Safari cannot revoke the File object
     const fileDataPromise = new Promise<string>((resolve, reject) => {
       const reader = new FileReader()
       reader.onload = (event) => {
@@ -156,14 +156,10 @@ export default function HomePage() {
         else reject(new Error('FileReader did not return a string'))
       }
       reader.onerror = (event) => {
-        reject(new Error('FileReader error: ' + event.target?.error?.message))
+        reject(new Error('FileReader error: ' + String(event.target?.error)))
       }
       reader.readAsDataURL(file)
     })
-
-    const currentUser = user || (await supabase.auth.getSession()).data.session?.user
-    if (!currentUser) return
-    const userId = currentUser.id
 
     setUploading(true)
     setMessages(prev => [...prev, {
@@ -182,7 +178,7 @@ export default function HomePage() {
           fileData,
           fileName: file.name || 'receipt.jpg',
           fileType: file.type || 'image/jpeg',
-          userId,
+          userId: user.id,
         }),
       })
 
@@ -215,7 +211,6 @@ export default function HomePage() {
         }])
       }
     } catch (err: any) {
-      console.error('Receipt upload error:', err)
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
