@@ -472,7 +472,6 @@ export default function HomePage() {
             ref={fileInputRef}
             type="file"
             accept="image/jpeg,image/png,image/heic,image/heif,image/*"
-            capture="environment"
             onChange={handleReceiptUpload}
             style={{ display: 'none' }}
           />
