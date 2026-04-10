@@ -145,7 +145,11 @@ export default function HomePage() {
 
   async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (!file || !user) return
+    if (!file) return
+
+    const currentUser = user || (await supabase.auth.getSession()).data.session?.user
+    if (!currentUser) return
+    const userId = currentUser.id
 
     setUploading(true)
 
@@ -159,7 +163,7 @@ export default function HomePage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('userId', user.id)
+      formData.append('userId', userId)
 
       const response = await fetch('/api/receipt', {
         method: 'POST',
