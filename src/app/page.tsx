@@ -81,6 +81,8 @@ export default function HomePage() {
       }
     }
 
+    await ensureHousehold(userId)
+
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
