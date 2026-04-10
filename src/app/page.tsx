@@ -197,11 +197,12 @@ export default function HomePage() {
           content: "I couldn't read that receipt clearly. Try a photo with better lighting, or type out what you bought!",
         }])
       }
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Receipt upload error:', err)
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Something went wrong uploading the receipt. Please try again.',
+        content: `Something went wrong: ${err?.message || 'Unknown error'}`,
       }])
     } finally {
       setUploading(false)
