@@ -93,6 +93,16 @@ Your job:
 5. Generate grocery lists when asked.
 6. Be conversational, warm, and brief.
 7. Never use emojis in your responses.
+8. When the user mentions wanting to eat, cook, or have any food on a specific day or meal time — ALWAYS add it to their meal planner immediately using a meal_plan block. Do not ask for confirmation. Do not say you cannot do it. Just do it and confirm.
+
+IMPORTANT: When the user says anything like "I want X on Tuesday", "make Y for dinner Friday", "cheeseburgers Tuesday dinner", "schedule Z for lunch" — immediately output a meal_plan block:
+<meal_plan>
+{"day": "Tuesday", "mealType": "dinner", "recipeTitle": "Cheeseburgers"}
+</meal_plan>
+
+Day must be one of: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.
+mealType must be one of: breakfast, lunch, dinner. Default to dinner if not specified.
+Always include this block when scheduling meals. Never tell the user you cannot schedule meals.
 
 When you need to update the pantry:
 <pantry_update>
@@ -264,10 +274,63 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
     }
   }
 
+  // Handle meal plan scheduling
+  const mealPlanMatches = [...rawReply.matchAll(/<meal_plan>([\s\S]*?)<\/meal_plan>/g)]
+  for (const match of mealPlanMatches) {
+    try {
+      const slot = JSON.parse(match[1])
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      // Find the next occurrence of the requested day from today
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+      const targetDayIndex = dayNames.indexOf(slot.day)
+      let weekStart = new Date(today)
+      if (targetDayIndex !== -1) {
+        const currentDayIndex = today.getDay()
+        const daysUntil = (targetDayIndex - currentDayIndex + 7) % 7
+        const targetDate = new Date(today)
+        targetDate.setDate(today.getDate() + daysUntil)
+        weekStart = new Date(targetDate)
+        weekStart.setDate(targetDate.getDate() - targetDate.getDay() + (targetDate.getDay() === 0 ? -6 : 1))
+      }
+      const weekStartStr = weekStart.toISOString().split('T')[0]
+
+      const { data: existing } = await supabase
+        .from('meal_plans')
+        .select('meals')
+        .eq('household_id', householdId)
+        .eq('week_start', weekStartStr)
+        .single()
+
+      const meals = existing?.meals || {}
+      const updatedMeals = {
+        ...meals,
+        [slot.day]: {
+          ...(meals[slot.day] || {}),
+          [slot.mealType]: {
+            recipeId: null,
+            recipeTitle: slot.recipeTitle,
+            servings: familySize,
+          },
+        },
+      }
+
+      await supabase.from('meal_plans').upsert({
+        household_id: householdId,
+        week_start: weekStartStr,
+        meals: updatedMeals,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'household_id,week_start' })
+    } catch (e) {
+      console.error('Failed to save meal plan:', e)
+    }
+  }
+
   const cleanReply = rawReply
     .replace(/<pantry_update>[\s\S]*?<\/pantry_update>/g, '')
     .replace(/<recipe_save>[\s\S]*?<\/recipe_save>/g, '')
     .replace(/<grocery_add>[\s\S]*?<\/grocery_add>/g, '')
+    .replace(/<meal_plan>[\s\S]*?<\/meal_plan>/g, '')
     .trim()
 
   // Quietly extract memories from this conversation
