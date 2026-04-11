@@ -25,17 +25,7 @@ interface Meals {
   }
 }
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'] as const
-
-function getMonday(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  d.setDate(diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
 
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0]
@@ -52,7 +42,7 @@ export default function PlannerPage() {
   const [meals, setMeals] = useState<Meals>({})
   const [familySize, setFamilySize] = useState(2)
   const [householdId, setHouseholdId] = useState<string | null>(null)
-  const [weekStart, setWeekStart] = useState<Date>(getMonday(new Date()))
+  const [weekStart, setWeekStart] = useState<Date>(() => { const today = new Date(); today.setHours(0, 0, 0, 0); return today })
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -332,7 +322,7 @@ export default function PlannerPage() {
           <p style={{ textAlign: 'center', color: '#999', marginTop: '40px' }}>Loading...</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {DAYS.map((day, dayIndex) => (
+            {Array.from({ length: 7 }, (_, i) => { const d = new Date(weekStart); d.setDate(d.getDate() + i); return d.toLocaleDateString('en', { weekday: 'long' }) }).map((day, dayIndex) => (
               <div key={day} style={{
                 backgroundColor: '#fff',
                 borderRadius: '16px',
