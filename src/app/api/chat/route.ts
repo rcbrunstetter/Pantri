@@ -116,6 +116,11 @@ When the user asks to save a recipe to their recipe book:
 }
 </recipe_save>
 
+When the user asks to add items to their grocery list:
+<grocery_add>
+[{"name": "milk", "quantity": "2", "unit": "liter", "category": "dairy"}]
+</grocery_add>
+
 Rules for pantry updates:
 - Use "add" for new items
 - Use "remove" for fully used items (item name as string)
@@ -238,9 +243,31 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
     }
   }
 
+  const groceryAddMatch = rawReply.match(/<grocery_add>([\s\S]*?)<\/grocery_add>/)
+  if (groceryAddMatch) {
+    try {
+      const groceryItems = JSON.parse(groceryAddMatch[1])
+      if (Array.isArray(groceryItems) && groceryItems.length > 0) {
+        await supabase.from('grocery_items').insert(
+          groceryItems.map((item: any) => ({
+            household_id: householdId,
+            name: item.name,
+            quantity: item.quantity || null,
+            unit: item.unit || null,
+            category: item.category || 'other',
+            source: 'chat',
+          }))
+        )
+      }
+    } catch (e) {
+      console.error('Failed to add grocery items:', e)
+    }
+  }
+
   const cleanReply = rawReply
     .replace(/<pantry_update>[\s\S]*?<\/pantry_update>/g, '')
     .replace(/<recipe_save>[\s\S]*?<\/recipe_save>/g, '')
+    .replace(/<grocery_add>[\s\S]*?<\/grocery_add>/g, '')
     .trim()
 
   // Quietly extract memories from this conversation
