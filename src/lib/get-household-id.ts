@@ -5,6 +5,7 @@ export async function getHouseholdId(supabase: SupabaseClient, userId: string): 
     .from('household_members')
     .select('household_id')
     .eq('user_id', userId)
-    .single()
-  return data?.household_id || null
+    .order('joined_at', { ascending: true })
+    .limit(1)
+  return data?.[0]?.household_id || null
 }
