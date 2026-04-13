@@ -18,11 +18,12 @@ export async function POST(req: NextRequest) {
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 
-  const [{ data: pantryItems }, { data: profile }, { data: foodProfile }, { data: recipes }] = await Promise.all([
+  const [{ data: pantryItems }, { data: profile }, { data: foodProfile }, { data: recipes }, { data: translationMemory }] = await Promise.all([
     supabase.from('pantry_items').select('*').eq('household_id', householdId),
     supabase.from('profiles').select('unit_system, family_size').eq('id', userId).single(),
     supabase.from('household_profiles').select('*').eq('household_id', householdId).single(),
     supabase.from('recipes').select('title, ingredients').eq('household_id', householdId),
+    supabase.from('translation_memory').select('original, translated').eq('household_id', householdId),
   ])
 
   const unitSystem = profile?.unit_system || 'metric'
@@ -80,6 +81,11 @@ ${recipes.map((r: any) => `- ${r.title}`).join('\n')}
 When suggesting meals, prioritize recipes they already have saved. You can reference them by name.
 ` : ''}
 
+${translationMemory && translationMemory.length > 0 ? `
+Known item translations for this household:
+${translationMemory.map((t: any) => `- "${t.original}" → "${t.translated}"`).join('\n')}
+` : ''}
+
 User's family size: ${familySize} people
 Unit preference: ${unitSystem.toUpperCase()}
 ${unitGuide}
@@ -94,6 +100,7 @@ Your job:
 6. Be conversational, warm, and brief.
 7. Never use emojis in your responses.
 8. When the user mentions wanting to eat, cook, or have any food on a specific day or meal time — ALWAYS add it to their meal planner immediately using a meal_plan block. Do not ask for confirmation. Do not say you cannot do it. Just do it and confirm.
+9. When the user corrects a translation (e.g. "that should be called X not Y" or "sriracha not spicy sauce") — store the correction using a translation_correction block.
 
 IMPORTANT: When the user says anything like "I want X on Tuesday", "make Y for dinner Friday", "cheeseburgers Tuesday dinner", "schedule Z for lunch" — immediately output a meal_plan block:
 <meal_plan>
@@ -130,6 +137,11 @@ When the user asks to add items to their grocery list:
 <grocery_add>
 [{"name": "milk", "quantity": "2", "unit": "liter", "category": "dairy"}]
 </grocery_add>
+
+When the user corrects how an item is named:
+<translation_correction>
+{"original": "TRAJNO MLEKO 3,5%", "translated": "Long-life Milk"}
+</translation_correction>
 
 Rules for pantry updates:
 - Use "add" for new items
@@ -274,6 +286,25 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
     }
   }
 
+  const translationMatch = rawReply.match(/<translation_correction>([\s\S]*?)<\/translation_correction>/)
+  if (translationMatch) {
+    try {
+      const correction = JSON.parse(translationMatch[1])
+      if (correction.original && correction.translated) {
+        const { error } = await supabase
+          .from('translation_memory')
+          .upsert({
+            household_id: householdId,
+            original: correction.original.toLowerCase(),
+            translated: correction.translated,
+          }, { onConflict: 'household_id,original' })
+        if (error) console.error('Failed to save translation correction:', error)
+      }
+    } catch (e) {
+      console.error('Failed to parse translation correction:', e)
+    }
+  }
+
   // Handle meal plan scheduling
   const mealPlanMatches = [...rawReply.matchAll(/<meal_plan>([\s\S]*?)<\/meal_plan>/g)]
   for (const match of mealPlanMatches) {
@@ -340,6 +371,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
     .replace(/<recipe_save>[\s\S]*?<\/recipe_save>/g, '')
     .replace(/<grocery_add>[\s\S]*?<\/grocery_add>/g, '')
     .replace(/<meal_plan>[\s\S]*?<\/meal_plan>/g, '')
+    .replace(/<translation_correction>[\s\S]*?<\/translation_correction>/g, '')
     .trim()
 
   // Quietly extract memories from this conversation

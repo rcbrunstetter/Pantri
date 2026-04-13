@@ -16,9 +16,10 @@ export async function POST(req: NextRequest) {
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 
-  const [{ data: pantryItems }, { data: memories }] = await Promise.all([
+  const [{ data: pantryItems }, { data: memories }, { data: recentSpending }] = await Promise.all([
     supabase.from('pantry_items').select('name, quantity, unit, category, created_at').eq('household_id', householdId),
-    supabase.from('household_memory').select('memory').eq('household_id', householdId),
+    supabase.from('household_memory').select('memory, category').eq('household_id', householdId),
+    supabase.from('spending_records').select('amount, store, spent_at').eq('household_id', householdId).order('spent_at', { ascending: false }).limit(10),
   ])
 
   const now = new Date()
@@ -37,26 +38,29 @@ export async function POST(req: NextRequest) {
     max_tokens: 300,
     messages: [{
       role: 'user',
-      content: `Generate 4 smart, personalized suggestion prompts for a kitchen app user. These appear as tappable buttons on the home screen.
+      content: `Generate 4 smart, highly personalized suggestion prompts for a kitchen app. These are tappable buttons on the home screen. Make them feel like they were written by someone who knows this family well.
 
 Today is ${dayOfWeek}.
 
-Current pantry:
+Current pantry (with days since added):
 ${pantryWithAge}
 
 Household habits and memories:
 ${memoryContext}
 
-Rules:
-- Make suggestions specific and actionable based on what's actually in the pantry and their habits
-- If any item has been in the pantry 4+ days, suggest using it
-- If it's a day they usually shop, suggest generating a grocery list
-- Keep each suggestion under 60 characters
-- No emojis
-- Suggestions should feel personal, not generic
+Recent spending:
+${recentSpending?.map((s: any) => `- $${s.amount} at ${s.store || 'unknown store'} on ${new Date(s.spent_at).toLocaleDateString('en', { weekday: 'long' })}`).join('\n') || 'No spending recorded yet.'}
 
-Return ONLY a JSON array of 4 suggestion strings. Example format:
-["Your chicken is 5 days old — need ideas?", "Generate this week's grocery list", "What can I make with pasta tonight?", "Plan meals for the week"]`
+Rules:
+- Be VERY specific — use actual item names from their pantry, actual days they shop, actual stores they visit
+- If any perishable item (meat, dairy, produce, fish) has been in pantry 3+ days, prioritize suggesting to use it
+- If today is a day they typically shop based on spending patterns, suggest generating a grocery list
+- Reference their saved recipes by name when suggesting meals
+- Never generate generic suggestions like "What can I make tonight?" — always be specific
+- Keep each suggestion under 65 characters
+- No emojis
+
+Return ONLY a JSON array of 4 suggestion strings.`
     }],
   })
 
