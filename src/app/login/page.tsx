@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -9,8 +9,14 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('pantri-saved-email')
+    if (savedEmail) setEmail(savedEmail)
+  }, [])
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -23,6 +29,11 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      if (rememberMe) {
+        localStorage.setItem('pantri-saved-email', email)
+      } else {
+        localStorage.removeItem('pantri-saved-email')
+      }
       window.location.href = '/'
     }
   }
@@ -100,6 +111,28 @@ export default function LoginPage() {
               backgroundColor: '#fff',
             }}
           />
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            padding: '4px 0',
+          }}>
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={e => setRememberMe(e.target.checked)}
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label htmlFor="rememberMe" style={{
+              fontSize: '14px',
+              color: '#666',
+              cursor: 'pointer',
+            }}>
+              Remember me
+            </label>
+          </div>
 
           {error && (
             <p style={{ color: '#e53e3e', fontSize: '14px', textAlign: 'center' }}>{error}</p>
