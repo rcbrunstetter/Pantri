@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-fetch'
 import { useRouter } from 'next/navigation'
 
 interface Ingredient {
@@ -67,10 +68,9 @@ export default function RecipesPage() {
     setError('')
 
     const formData = new FormData()
-    formData.append('userId', user.id)
     formData.append('url', importUrl.trim())
 
-    const response = await fetch('/api/recipe-import', {
+    const response = await apiFetch('/api/recipe-import', {
       method: 'POST',
       body: formData,
     })
@@ -95,10 +95,9 @@ export default function RecipesPage() {
     setError('')
 
     const formData = new FormData()
-    formData.append('userId', user.id)
     formData.append('file', file)
 
-    const response = await fetch('/api/recipe-import', {
+    const response = await apiFetch('/api/recipe-import', {
       method: 'POST',
       body: formData,
     })

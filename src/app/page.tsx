@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-fetch'
 import { useRouter } from 'next/navigation'
 
 interface Message {
@@ -41,7 +42,7 @@ export default function HomePage() {
         } else {
           loadWelcome(session.user.id)
         }
-        ensureHousehold(session.user.id)
+        ensureHousehold()
         const prefill = sessionStorage.getItem('pantri-prefill')
         if (prefill) {
           sessionStorage.removeItem('pantri-prefill')
@@ -55,7 +56,7 @@ export default function HomePage() {
       if (refreshedSession) {
         setUser(refreshedSession.user)
         loadWelcome(refreshedSession.user.id)
-        ensureHousehold(refreshedSession.user.id)
+        ensureHousehold()
       } else {
         router.push('/login')
       }
@@ -69,7 +70,7 @@ export default function HomePage() {
 
   async function loadWelcome(userId: string) {
     setWelcomeLoading(true)
-    await ensureHousehold(userId)
+    await ensureHousehold()
 
     // Check if we have cached suggestions from today
     const cacheKey = 'pantri-suggestions'
@@ -87,19 +88,16 @@ export default function HomePage() {
 
     // Generate fresh suggestions and welcome
     const [welcomeRes, suggestionsRes] = await Promise.all([
-      fetch('/api/chat', {
+      apiFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: 'Generate a warm, friendly 1-2 sentence welcome message for someone opening their kitchen app. Be warm and encouraging. No pantry counts, no meal suggestions, no lists, no emojis. Just a friendly greeting.',
-          userId,
           history: [],
         }),
       }),
-      fetch('/api/suggestions', {
+      apiFetch('/api/suggestions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
       }),
     ])
 
@@ -139,12 +137,11 @@ export default function HomePage() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await apiFetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: userMessage.content,
-          userId: user.id,
           history: messages.slice(-10),
         }),
       })
@@ -176,7 +173,7 @@ export default function HomePage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
 
-    await ensureHousehold(user.id)
+    await ensureHousehold()
 
     setUploading(true)
 
@@ -190,9 +187,8 @@ export default function HomePage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('userId', user.id)
 
-      const response = await fetch('/api/receipt', {
+      const response = await apiFetch('/api/receipt', {
         method: 'POST',
         body: formData,
       })
@@ -250,11 +246,9 @@ export default function HomePage() {
       .replace(/^<br\/>/, '')
   }
 
-  async function ensureHousehold(userId: string) {
-    await fetch('/api/ensure-household', {
+  async function ensureHousehold() {
+    await apiFetch('/api/ensure-household', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId }),
     })
   }
 

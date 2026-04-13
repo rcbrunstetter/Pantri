@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getHouseholdId } from '@/lib/get-household-id'
+import { getUserFromRequest } from '@/lib/get-user-from-request'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -13,14 +14,12 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  const userId = await getUserFromRequest(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const formData = await req.formData()
-  const userId = formData.get('userId') as string
   const url = formData.get('url') as string | null
   const file = formData.get('file') as File | null
-
-  if (!userId) {
-    return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
-  }
 
   if (!url && !file) {
     return NextResponse.json({ error: 'Must provide a URL or image' }, { status: 400 })

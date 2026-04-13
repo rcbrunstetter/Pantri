@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getHouseholdId } from '@/lib/get-household-id'
+import { getUserFromRequest } from '@/lib/get-user-from-request'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 const supabase = createClient(
@@ -10,8 +11,8 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const { userId } = await req.json()
-  if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+  const userId = await getUserFromRequest(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })

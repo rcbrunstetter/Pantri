@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getHouseholdId } from '@/lib/get-household-id'
+import { getUserFromRequest } from '@/lib/get-user-from-request'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -13,10 +14,13 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
-  const { message, userId, history } = await req.json()
+  const userId = await getUserFromRequest(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { message, history } = await req.json()
 
   const { checkRateLimit } = await import('@/lib/rate-limit')
-  const { allowed, remaining } = await checkRateLimit(userId, 'chat')
+  const { allowed } = await checkRateLimit(userId, 'chat')
   if (!allowed) {
     return NextResponse.json({
       reply: "You've reached your daily chat limit. Come back tomorrow!"

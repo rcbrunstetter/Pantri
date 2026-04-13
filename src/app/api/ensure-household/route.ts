@@ -1,13 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getUserFromRequest } from '@/lib/get-user-from-request'
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId } = await req.json()
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
-    }
+    const userId = await getUserFromRequest(req)
+    if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import convert from 'heic-convert'
 import { getHouseholdId } from '@/lib/get-household-id'
+import { getUserFromRequest } from '@/lib/get-user-from-request'
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -15,12 +16,14 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  const userId = await getUserFromRequest(req)
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const formData = await req.formData()
   const file = formData.get('file') as File
-  const userId = formData.get('userId') as string
 
-  if (!file || !userId) {
-    return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 })
+  if (!file) {
+    return NextResponse.json({ error: 'Missing file' }, { status: 400 })
   }
 
   const { checkRateLimit } = await import('@/lib/rate-limit')

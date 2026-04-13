@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase'
+import { apiFetch } from '@/lib/api-fetch'
 import { useRouter } from 'next/navigation'
 
 interface GroceryItem {
@@ -82,10 +83,10 @@ export default function GroceryPage() {
         ).join('\n')}`
       : 'Pantry is empty.'
 
-    const response = await fetch('/api/grocery', {
+    const response = await apiFetch('/api/grocery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id, pantryContext, unitSystem }),
+      body: JSON.stringify({ pantryContext, unitSystem }),
     })
 
     const data = await response.json()
@@ -111,10 +112,10 @@ export default function GroceryPage() {
     const { data: profileRows } = await supabase.from('profiles').select('unit_system').eq('id', userId).limit(1)
     const unitSystem = profileRows?.[0]?.unit_system || 'metric'
 
-    const response = await fetch('/api/grocery', {
+    const response = await apiFetch('/api/grocery', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, pantryContext, unitSystem, recipeContext, mode: 'plan' }),
+      body: JSON.stringify({ pantryContext, unitSystem, recipeContext, mode: 'plan' }),
     })
 
     const data = await response.json()
