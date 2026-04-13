@@ -471,6 +471,41 @@ export default function SettingsPage() {
             >
               {saved ? '✓ Saved!' : saving ? 'Saving...' : 'Save Settings'}
             </button>
+
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '24px',
+              marginTop: '24px',
+              paddingBottom: '40px',
+            }}>
+              <button
+                onClick={() => router.push('/privacy')}
+                style={{
+                  fontSize: '13px',
+                  color: '#999',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Privacy Policy
+              </button>
+              <button
+                onClick={() => router.push('/terms')}
+                style={{
+                  fontSize: '13px',
+                  color: '#999',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Terms of Service
+              </button>
+            </div>
           </>
         )}
       </div>

@@ -15,6 +15,14 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   const { message, userId, history } = await req.json()
 
+  const { checkRateLimit } = await import('@/lib/rate-limit')
+  const { allowed, remaining } = await checkRateLimit(userId, 'chat')
+  if (!allowed) {
+    return NextResponse.json({
+      reply: "You've reached your daily chat limit. Come back tomorrow!"
+    })
+  }
+
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found' }, { status: 400 })
 

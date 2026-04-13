@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing file or userId' }, { status: 400 })
   }
 
+  const { checkRateLimit } = await import('@/lib/rate-limit')
+  const { allowed } = await checkRateLimit(userId, 'receipt')
+  if (!allowed) {
+    return NextResponse.json({ error: 'Daily receipt scan limit reached. Come back tomorrow!' }, { status: 429 })
+  }
+
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found', userId }, { status: 400 })
 
