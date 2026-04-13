@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-fetch'
 import { useRouter } from 'next/navigation'
+import LoadingScreen from '@/components/LoadingScreen'
 
 interface Message {
   id: string
@@ -14,6 +15,7 @@ interface Message {
 export default function HomePage() {
   const SESSION_MESSAGES_KEY = 'pantri-session-messages'
 
+  const [appReady, setAppReady] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -43,6 +45,7 @@ export default function HomePage() {
           loadWelcome(session.user.id)
         }
         ensureHousehold()
+        setAppReady(true)
         const prefill = sessionStorage.getItem('pantri-prefill')
         if (prefill) {
           sessionStorage.removeItem('pantri-prefill')
@@ -57,6 +60,7 @@ export default function HomePage() {
         setUser(refreshedSession.user)
         loadWelcome(refreshedSession.user.id)
         ensureHousehold()
+        setAppReady(true)
       } else {
         router.push('/login')
       }
@@ -264,6 +268,7 @@ export default function HomePage() {
       height: '100vh',
       backgroundColor: '#fafaf8',
     }}>
+      {!appReady && <LoadingScreen />}
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -454,14 +459,30 @@ export default function HomePage() {
         {(loading || uploading) && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div style={{
-              padding: '11px 15px',
+              padding: '11px 16px',
               borderRadius: '18px 18px 18px 4px',
               backgroundColor: '#fff',
-              color: '#999',
-              fontSize: '15px',
               boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
             }}>
-              {uploading ? 'Reading receipt...' : 'Thinking...'}
+              <style>{`
+                @keyframes bounceDot {
+                  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+                  40% { transform: translateY(-6px); opacity: 1; }
+                }
+              `}</style>
+              {[0, 1, 2].map(i => (
+                <div key={i} style={{
+                  width: '7px',
+                  height: '7px',
+                  borderRadius: '50%',
+                  backgroundColor: '#2d6a4f',
+                  animation: 'bounceDot 1.2s ease-in-out infinite',
+                  animationDelay: `${i * 0.2}s`,
+                }} />
+              ))}
             </div>
           </div>
         )}
