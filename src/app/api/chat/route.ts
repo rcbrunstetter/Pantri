@@ -198,25 +198,27 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
 
       if (updates.remove && updates.remove.length > 0) {
         for (const itemName of updates.remove) {
-          await supabase
+          const { error: removeError } = await supabase
             .from('pantry_items')
             .delete()
             .eq('household_id', householdId)
             .ilike('name', itemName)
+          if (removeError) console.error('Failed to remove pantry item:', itemName, removeError)
         }
       }
 
       if (updates.adjust && updates.adjust.length > 0) {
         for (const item of updates.adjust) {
-          const { data: existing } = await supabase
+          const { data: existingRows } = await supabase
             .from('pantry_items')
             .select('id')
             .eq('household_id', householdId)
             .ilike('name', item.name)
-            .single()
+            .limit(1)
 
+          const existing = existingRows?.[0]
           if (existing) {
-            await supabase
+            const { error: adjustError } = await supabase
               .from('pantry_items')
               .update({
                 quantity: item.quantity,
@@ -224,6 +226,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
                 updated_at: new Date().toISOString(),
               })
               .eq('id', existing.id)
+            if (adjustError) console.error('Failed to adjust pantry item:', item.name, adjustError)
           }
         }
       }

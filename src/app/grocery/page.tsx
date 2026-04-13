@@ -70,12 +70,12 @@ export default function GroceryPage() {
     if (!householdId || !user) return
     setGenerating(true)
 
-    const [{ data: pantryItems }, { data: profile }] = await Promise.all([
+    const [{ data: pantryItems }, { data: profileRows }] = await Promise.all([
       supabase.from('pantry_items').select('*').eq('household_id', householdId),
-      supabase.from('profiles').select('unit_system').eq('id', user.id).single(),
+      supabase.from('profiles').select('unit_system').eq('id', user.id).limit(1),
     ])
 
-    const unitSystem = profile?.unit_system || 'metric'
+    const unitSystem = profileRows?.[0]?.unit_system || 'metric'
     const pantryContext = pantryItems && pantryItems.length > 0
       ? `Current pantry:\n${pantryItems.map((item: any) =>
           `- ${item.name}${item.quantity ? ` (${item.quantity}${item.unit ? ' ' + item.unit : ''})` : ''}`
@@ -108,8 +108,8 @@ export default function GroceryPage() {
 
   async function generateFromPlan(userId: string, hid: string, recipeContext: string, pantryContext: string, servings: number) {
     setGenerating(true)
-    const { data: profile } = await supabase.from('profiles').select('unit_system').eq('id', userId).single()
-    const unitSystem = profile?.unit_system || 'metric'
+    const { data: profileRows } = await supabase.from('profiles').select('unit_system').eq('id', userId).limit(1)
+    const unitSystem = profileRows?.[0]?.unit_system || 'metric'
 
     const response = await fetch('/api/grocery', {
       method: 'POST',
@@ -147,7 +147,7 @@ export default function GroceryPage() {
 
   async function handleAddItem() {
     if (!newItem.trim() || !householdId) return
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from('grocery_items')
       .insert({
         household_id: householdId,
@@ -158,7 +158,8 @@ export default function GroceryPage() {
         source: 'manual',
       })
       .select()
-      .single()
+      .limit(1)
+    const data = rows?.[0]
     if (data) setItems(prev => [...prev, data])
     setNewItem('')
     setNewQty('')

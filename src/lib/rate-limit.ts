@@ -27,7 +27,8 @@ export async function checkRateLimit(userId: string, endpoint: string): Promise<
   const allowed = used < limit
 
   if (allowed) {
-    await supabase.from('api_usage').insert({ user_id: userId, endpoint })
+    const { error: insertError } = await supabase.from('api_usage').insert({ user_id: userId, endpoint })
+    if (insertError) console.error('Rate limit insert failed:', insertError)
   }
 
   return { allowed, remaining: Math.max(0, limit - used - 1) }

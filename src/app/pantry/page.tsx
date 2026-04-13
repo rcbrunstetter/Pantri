@@ -26,12 +26,12 @@ export default function PantryPage() {
         router.push('/login')
       } else {
         setUser(user)
-        const { data: membership } = await supabase
+        const { data: membershipRows } = await supabase
           .from('household_members')
           .select('household_id')
           .eq('user_id', user.id)
-          .single()
-        const householdId = membership?.household_id
+          .limit(1)
+        const householdId = membershipRows?.[0]?.household_id
         loadPantry(householdId)
       }
     })

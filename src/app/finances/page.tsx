@@ -43,11 +43,13 @@ export default function FinancesPage() {
   }, [])
 
   async function loadData(userId: string) {
-    const { data: membership } = await supabase
+    const { data: membershipRows } = await supabase
       .from('household_members')
       .select('household_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
+
+    const membership = membershipRows?.[0]
 
     if (!membership) {
       setLoading(false)
@@ -56,11 +58,13 @@ export default function FinancesPage() {
 
     setHouseholdId(membership.household_id)
 
-    const { data: profile } = await supabase
+    const { data: profileRows } = await supabase
       .from('household_profiles')
       .select('weekly_budget')
       .eq('household_id', membership.household_id)
-      .single()
+      .limit(1)
+
+    const profile = profileRows?.[0]
 
     if (profile?.weekly_budget) {
       setWeeklyBudgetGoal(profile.weekly_budget)
@@ -82,7 +86,7 @@ export default function FinancesPage() {
     if (!amount || !householdId) return
     setSaving(true)
 
-    const { data } = await supabase
+    const { data: insertedRows } = await supabase
       .from('spending_records')
       .insert({
         household_id: householdId,
@@ -93,8 +97,9 @@ export default function FinancesPage() {
         spent_at: new Date().toISOString(),
       })
       .select()
-      .single()
+      .limit(1)
 
+    const data = insertedRows?.[0]
     if (data) {
       setRecords(prev => [data, ...prev])
     }

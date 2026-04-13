@@ -33,12 +33,13 @@ export default function SettingsPage() {
   }, [])
 
   async function loadProfile(userId: string) {
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .limit(1)
 
+    const data = rows?.[0]
     if (data) {
       setUnitSystem(data.unit_system || 'metric')
       setFamilySize(data.family_size || 2)
@@ -49,11 +50,13 @@ export default function SettingsPage() {
   }
 
   async function loadHousehold(userId: string) {
-    const { data: membership } = await supabase
+    const { data: membershipRows } = await supabase
       .from('household_members')
       .select('household_id, role, households(name)')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
+
+    const membership = membershipRows?.[0]
 
     if (membership) {
       const household = membership.households as any
@@ -91,14 +94,16 @@ export default function SettingsPage() {
     if (!householdId) return
     setGeneratingInvite(true)
 
-    const { data: invite } = await supabase
+    const { data: inviteRows } = await supabase
       .from('household_invites')
       .insert({
         household_id: householdId,
         created_by: user.id,
       })
       .select()
-      .single()
+      .limit(1)
+
+    const invite = inviteRows?.[0]
 
     if (invite) {
       const link = `${window.location.origin}/join?token=${invite.token}`

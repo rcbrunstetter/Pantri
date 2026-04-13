@@ -46,11 +46,13 @@ export default function FoodProfilePage() {
   }, [])
 
   async function loadProfile(userId: string) {
-    const { data: membership } = await supabase
+    const { data: membershipRows } = await supabase
       .from('household_members')
       .select('household_id')
       .eq('user_id', userId)
-      .single()
+      .limit(1)
+
+    const membership = membershipRows?.[0]
 
     if (!membership) {
       setLoading(false)
@@ -59,11 +61,13 @@ export default function FoodProfilePage() {
 
     setHouseholdId(membership.household_id)
 
-    const { data } = await supabase
+    const { data: profileRows } = await supabase
       .from('household_profiles')
       .select('*')
       .eq('household_id', membership.household_id)
-      .single()
+      .limit(1)
+
+    const data = profileRows?.[0]
 
     if (data) {
       setDietaryRestrictions(data.dietary_restrictions || [])

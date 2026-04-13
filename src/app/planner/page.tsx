@@ -77,12 +77,12 @@ export default function PlannerPage() {
   }, [weekStart, user, householdId])
 
   async function loadData(userId: string, hid: string) {
-    const [{ data: recipesData }, { data: profile }] = await Promise.all([
+    const [{ data: recipesData }, { data: profileRows }] = await Promise.all([
       supabase.from('recipes').select('id, title, servings, ingredients').eq('household_id', hid),
-      supabase.from('profiles').select('family_size').eq('id', userId).single(),
+      supabase.from('profiles').select('family_size').eq('id', userId).limit(1),
     ])
     setRecipes(recipesData || [])
-    const fs = profile?.family_size || 2
+    const fs = profileRows?.[0]?.family_size || 2
     setFamilySize(fs)
     await loadWeekPlan(hid)
     setLoading(false)
