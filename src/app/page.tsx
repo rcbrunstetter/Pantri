@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase'
 import { apiFetch } from '@/lib/api-fetch'
 import { useRouter } from 'next/navigation'
 import LoadingScreen from '@/components/LoadingScreen'
+import { track } from '@/lib/track'
 
 interface Message {
   id: string
@@ -57,6 +58,7 @@ export default function HomePage() {
         // Wait for both the session setup AND the minimum load time
         await minLoadTime
         setAppReady(true)
+        track('app_open', session.user.id, null)
         return
       }
 
@@ -69,6 +71,7 @@ export default function HomePage() {
         loadWelcome(refreshedSession.user.id)
         ensureHousehold()
         setAppReady(true)
+        track('app_open', refreshedSession.user.id, null)
       } else {
         setAppReady(true)
         router.push('/login')
@@ -185,6 +188,7 @@ export default function HomePage() {
       setMessages(prev => [...prev, assistantMessage])
       const updated = [...messages, userMessage, assistantMessage]
       sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify(updated))
+      track('chat_message', user.id, null)
 
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -244,6 +248,7 @@ export default function HomePage() {
         }
         setMessages(prev => [...prev, replyMessage])
         sessionStorage.setItem(SESSION_MESSAGES_KEY, JSON.stringify([...messages, uploadingMessage, replyMessage]))
+        track('receipt_scanned', user.id, null, { itemCount: data.items.length, store: data.store })
       } else {
         setMessages(prev => [...prev, {
           id: (Date.now() + 1).toString(),

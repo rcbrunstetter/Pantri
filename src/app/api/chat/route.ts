@@ -234,6 +234,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
           }
         }
       }
+      await supabase.from('analytics_events').insert({ event: 'pantry_updated', user_id: userId, household_id: householdId, properties: {} })
     } catch (e) {
       console.error('Failed to parse pantry update:', e)
     }
@@ -295,6 +296,7 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
             source: 'chat',
           }))
         )
+        await supabase.from('analytics_events').insert({ event: 'grocery_item_added_via_chat', user_id: userId, household_id: householdId, properties: {} })
       }
     } catch (e) {
       console.error('Failed to add grocery items:', e)
@@ -375,6 +377,8 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
 
       if (upsertError) {
         console.error('Failed to upsert meal plan:', upsertError)
+      } else {
+        await supabase.from('analytics_events').insert({ event: 'meal_scheduled', user_id: userId, household_id: householdId, properties: {} })
       }
     } catch (e) {
       console.error('Failed to save meal plan:', e)
