@@ -40,7 +40,14 @@ export default function AdminPage() {
   }, [])
 
   async function loadStats() {
-    const response = await fetch('/api/admin/stats')
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+
+    const response = await fetch('/api/admin/stats', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
     const data = await response.json()
     setStats(data)
     setLoading(false)
