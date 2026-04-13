@@ -150,15 +150,21 @@ Do not guess or invent items that are not visible on the receipt.`,
     console.log('Parsed items:', parsed.items)
 
     if (parsed.items && parsed.items.length > 0) {
+      console.log('Attempting to save', parsed.items.length, 'items to household:', householdId)
       const { upsertPantryItem } = await import('@/lib/pantry-utils')
       for (const item of parsed.items) {
-        await upsertPantryItem(supabase, {
-          household_id: householdId,
-          name: item.name,
-          quantity: item.quantity || null,
-          unit: item.unit || null,
-          category: item.category || null,
-        })
+        try {
+          await upsertPantryItem(supabase, {
+            household_id: householdId,
+            name: item.name,
+            quantity: item.quantity || null,
+            unit: item.unit || null,
+            category: item.category || null,
+          })
+          console.log('Saved item:', item.name)
+        } catch (e) {
+          console.error('Failed to save item:', item.name, e)
+        }
       }
 
       await supabase.from('receipts').insert({
