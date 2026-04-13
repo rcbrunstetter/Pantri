@@ -25,32 +25,15 @@ export default function JoinPage() {
   }, [])
 
   async function loadInvite(t: string) {
-    const { data: invite } = await supabase
-      .from('household_invites')
-      .select('household_id, used_at, expires_at, households(name)')
-      .eq('token', t)
-      .single()
-
-    if (!invite) {
-      setErrorMessage('This invite link is invalid or has expired.')
+    const response = await fetch(`/api/invite?token=${t}`)
+    if (!response.ok) {
+      const data = await response.json()
+      setErrorMessage(data.error || 'This invite link is invalid or has expired.')
       setStatus('error')
       return
     }
-
-    if (invite.used_at) {
-      setErrorMessage('This invite link has already been used.')
-      setStatus('error')
-      return
-    }
-
-    if (new Date(invite.expires_at) < new Date()) {
-      setErrorMessage('This invite link has expired.')
-      setStatus('error')
-      return
-    }
-
-    const household = invite.households as any
-    setHouseholdName(household?.name || 'a household')
+    const data = await response.json()
+    setHouseholdName(data.householdName)
     setStatus('ready')
   }
 
@@ -63,41 +46,18 @@ export default function JoinPage() {
       return
     }
 
-    const userId = session.user.id
+    const response = await fetch('/api/invite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, userId: session.user.id }),
+    })
 
-    // Get the invite details
-    const { data: invite } = await supabase
-      .from('household_invites')
-      .select('household_id')
-      .eq('token', token)
-      .single()
-
-    if (!invite) {
-      setErrorMessage('Invite not found.')
+    if (!response.ok) {
+      const data = await response.json()
+      setErrorMessage(data.error || 'Failed to join household.')
       setStatus('error')
       return
     }
-
-    // Remove user from their current household
-    await supabase
-      .from('household_members')
-      .delete()
-      .eq('user_id', userId)
-
-    // Add user to new household
-    await supabase
-      .from('household_members')
-      .insert({
-        household_id: invite.household_id,
-        user_id: userId,
-        role: 'member',
-      })
-
-    // Mark invite as used
-    await supabase
-      .from('household_invites')
-      .update({ used_by: userId, used_at: new Date().toISOString() })
-      .eq('token', token)
 
     router.push('/')
   }
