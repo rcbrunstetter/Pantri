@@ -28,7 +28,10 @@ interface Meals {
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'] as const
 
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0]
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function addDays(date: Date, days: number): Date {
@@ -57,12 +60,12 @@ export default function PlannerPage() {
         router.push('/login')
       } else {
         setUser(user)
-        const { data: membership } = await supabase
+        const { data: membershipRows } = await supabase
           .from('household_members')
           .select('household_id')
           .eq('user_id', user.id)
-          .single()
-        const hid = membership?.household_id
+          .limit(1)
+        const hid = membershipRows?.[0]?.household_id
         setHouseholdId(hid)
         loadData(user.id, hid)
       }
@@ -86,13 +89,14 @@ export default function PlannerPage() {
   }
 
   async function loadWeekPlan(hid: string) {
-    const { data } = await supabase
+    const { data: rows } = await supabase
       .from('meal_plans')
       .select('*')
       .eq('household_id', hid)
       .eq('week_start', formatDate(weekStart))
-      .single()
+      .limit(1)
 
+    const data = rows?.[0]
     if (data) {
       setMeals(data.meals || {})
     } else {

@@ -293,10 +293,11 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
         targetDate.setDate(today.getDate() + daysUntil)
       }
 
-      // week_start is today (not Monday) — find which "today-based" week contains the target date
-      // The planner shows 7 days from whatever day the user opened it
-      // We store week_start as today's date for the current 7-day window
-      const weekStartStr = today.toISOString().split('T')[0]
+      // week_start is today's local date — must match what the planner client computes
+      const y = today.getFullYear()
+      const mo = String(today.getMonth() + 1).padStart(2, '0')
+      const dy = String(today.getDate()).padStart(2, '0')
+      const weekStartStr = `${y}-${mo}-${dy}`
 
       const { data: results } = await supabase
         .from('meal_plans')
