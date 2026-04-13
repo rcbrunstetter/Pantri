@@ -62,7 +62,7 @@ export default function SettingsPage() {
 
       const { data: allMembers } = await supabase
         .from('household_members')
-        .select('user_id, role, profiles(id)')
+        .select('user_id, role')
         .eq('household_id', membership.household_id)
 
       setMembers(allMembers || [])
@@ -365,6 +365,20 @@ export default function SettingsPage() {
                 margin: '0 0 16px 0',
               }}>
                 {householdName} · {members.length} {members.length === 1 ? 'member' : 'members'}
+                <button
+                  onClick={() => user && loadHousehold(user.id)}
+                  style={{
+                    marginLeft: '8px',
+                    fontSize: '13px',
+                    color: '#2d6a4f',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Refresh
+                </button>
               </p>
 
               {!inviteLink ? (
