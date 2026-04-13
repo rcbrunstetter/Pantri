@@ -16,6 +16,7 @@ export default function HomePage() {
   const SESSION_MESSAGES_KEY = 'pantri-session-messages'
 
   const [appReady, setAppReady] = useState(false)
+  const [isFirstTime, setIsFirstTime] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -75,6 +76,21 @@ export default function HomePage() {
   async function loadWelcome(userId: string) {
     setWelcomeLoading(true)
     await ensureHousehold()
+
+    // Check if the user has ever sent a message
+    const { data: messageCount } = await supabase
+      .from('chat_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    const firstTime = !messageCount || (messageCount as any).count === 0
+    setIsFirstTime(firstTime)
+
+    if (firstTime) {
+      setWelcomeMessage('onboarding')
+      setWelcomeLoading(false)
+      return
+    }
 
     // Check if we have cached suggestions from today
     const cacheKey = 'pantri-suggestions'
@@ -269,6 +285,7 @@ export default function HomePage() {
       backgroundColor: '#fafaf8',
     }}>
       {!appReady && <LoadingScreen />}
+
       {/* Header */}
       <div style={{
         display: 'flex',
@@ -380,13 +397,28 @@ export default function HomePage() {
           <div style={{
             backgroundColor: '#fff',
             borderRadius: '18px',
-            padding: '16px 18px',
+            padding: '20px 20px',
             boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-            alignSelf: 'flex-start',
-            maxWidth: '82%',
+            alignSelf: 'stretch',
+            maxWidth: '90%',
           }}>
             {welcomeLoading ? (
               <p style={{ color: '#999', fontSize: '15px', margin: 0 }}>Good to see you...</p>
+            ) : welcomeMessage === 'onboarding' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <p style={{ fontSize: '17px', fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
+                  Welcome to Pantri!
+                </p>
+                <p style={{ fontSize: '15px', lineHeight: '1.6', color: '#333', margin: 0 }}>
+                  I am your personal kitchen assistant. Tell me what you buy, what you cook, and what you have at home — and I will keep track of everything for you. I can help you manage your pantry, plan meals for the week, build grocery lists, and even track what you spend on food.
+                </p>
+                <p style={{ fontSize: '15px', lineHeight: '1.6', color: '#333', margin: 0 }}>
+                  Coming soon: I will be able to suggest and order your groceries straight to your door, and you will be able to add items to your grocery list directly from your home screen with Pantri's widget.
+                </p>
+                <p style={{ fontSize: '15px', fontWeight: '600', color: '#2d6a4f', margin: 0 }}>
+                  The best way to get started is to scan a grocery receipt using the camera button below, or just tell me what is in your kitchen right now.
+                </p>
+              </div>
             ) : (
               <span style={{ fontSize: '15px', lineHeight: '1.5', color: '#1a1a1a' }}
                 dangerouslySetInnerHTML={{ __html: formatMessage(welcomeMessage) }}
@@ -405,10 +437,23 @@ export default function HomePage() {
             padding: '8px 0',
             width: '100%',
           }}>
-            {suggestions.map(suggestion => (
+            {(isFirstTime ? [
+              'Scan my first receipt',
+              'I want to tell you what I have',
+              'Show me what you can do',
+              'Set up my food preferences',
+            ] : suggestions).map(suggestion => (
               <button
                 key={suggestion}
                 onClick={() => {
+                  if (suggestion === 'Scan my first receipt') {
+                    fileInputRef.current?.click()
+                    return
+                  }
+                  if (suggestion === 'Set up my food preferences') {
+                    router.push('/food-profile')
+                    return
+                  }
                   setInput(suggestion)
                   setTimeout(() => handleSend(), 50)
                 }}
