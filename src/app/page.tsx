@@ -33,6 +33,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2500))
+
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
@@ -46,23 +48,29 @@ export default function HomePage() {
           loadWelcome(session.user.id)
         }
         ensureHousehold()
-        setAppReady(true)
         const prefill = sessionStorage.getItem('pantri-prefill')
         if (prefill) {
           sessionStorage.removeItem('pantri-prefill')
           setInput(prefill)
         }
+
+        // Wait for both the session setup AND the minimum load time
+        await minLoadTime
+        setAppReady(true)
         return
       }
 
-      // No session found — try refreshing once before redirecting
       const { data: { session: refreshedSession } } = await supabase.auth.refreshSession()
+
+      await minLoadTime
+
       if (refreshedSession) {
         setUser(refreshedSession.user)
         loadWelcome(refreshedSession.user.id)
         ensureHousehold()
         setAppReady(true)
       } else {
+        setAppReady(true)
         router.push('/login')
       }
     }
