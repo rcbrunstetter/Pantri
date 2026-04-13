@@ -49,7 +49,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      setError('Check your email to confirm your account.')
+      setError('Account created! You can log in now.')
       setLoading(false)
     }
   }
