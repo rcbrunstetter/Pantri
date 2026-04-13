@@ -10,12 +10,14 @@ interface PantryItemInput {
 
 export async function upsertPantryItem(supabase: SupabaseClient, item: PantryItemInput) {
   // Check if item already exists (case-insensitive)
-  const { data: existing } = await supabase
+  const { data: results } = await supabase
     .from('pantry_items')
     .select('*')
     .eq('household_id', item.household_id)
     .ilike('name', item.name)
-    .single()
+    .limit(1)
+
+  const existing = results?.[0]
 
   if (existing) {
     // Item exists — add quantities if both are numeric
@@ -34,7 +36,6 @@ export async function upsertPantryItem(supabase: SupabaseClient, item: PantryIte
         })
         .eq('id', existing.id)
     }
-    // If quantities aren't numeric, just leave it as is
   } else {
     // Item doesn't exist — insert it
     await supabase.from('pantry_items').insert(item)
