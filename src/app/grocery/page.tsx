@@ -171,18 +171,6 @@ export default function GroceryPage() {
     const checkedItems = items.filter(i => i.checked)
     if (checkedItems.length === 0) return
     setCompleting(true)
-
-    await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: `I just bought these items, please add them to my pantry: ${checkedItems.map(i =>
-          `${i.quantity ? i.quantity + ' ' : ''}${i.unit ? i.unit + ' ' : ''}${i.name}`).join(', ')}`,
-        userId: user.id,
-        history: [],
-      }),
-    })
-
     await supabase.from('grocery_items').delete().in('id', checkedItems.map(i => i.id))
     setItems(prev => prev.filter(i => !i.checked))
     setCompleting(false)
@@ -330,7 +318,7 @@ export default function GroceryPage() {
             width: '100%', padding: '16px', fontSize: '16px', fontWeight: '700',
             color: '#fff', backgroundColor: '#2d6a4f', border: 'none', borderRadius: '14px', cursor: 'pointer', opacity: completing ? 0.7 : 1,
           }}>
-            {completing ? 'Updating pantry...' : `Done Shopping (${checkedCount} item${checkedCount > 1 ? 's' : ''})`}
+            {completing ? 'Updating pantry...' : `Done Shopping — ${checkedCount} item${checkedCount > 1 ? 's' : ''} checked off`}
           </button>
         </div>
       )}

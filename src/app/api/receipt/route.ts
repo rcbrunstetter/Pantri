@@ -26,6 +26,16 @@ export async function POST(req: NextRequest) {
   const householdId = await getHouseholdId(supabase, userId)
   if (!householdId) return NextResponse.json({ error: 'No household found', userId }, { status: 400 })
 
+  const { data: groceryItems } = await supabase
+    .from('grocery_items')
+    .select('name, quantity, unit')
+    .eq('household_id', householdId)
+    .eq('checked', false)
+
+  const groceryContext = groceryItems && groceryItems.length > 0
+    ? `\n\nThe user's current grocery list (use this to help identify ambiguous items on the receipt):\n${groceryItems.map(i => `- ${i.name}${i.quantity ? ` (${i.quantity}${i.unit ? ' ' + i.unit : ''})` : ''}`).join('\n')}`
+    : ''
+
   const fileBuffer = await file.arrayBuffer()
   const storageFileName = `${userId}/${Date.now()}.jpg`
 
@@ -131,6 +141,8 @@ Return ONLY valid JSON in this exact format with no other text:
 }
 
 - Extract the total amount paid from the receipt and put it in the "total" field as a number. If you cannot find a total, set it to null.
+
+${groceryContext}
 
 Categories: produce, dairy, meat, bakery, frozen, pantry, beverages, snacks, household, other.
 If you cannot clearly read the receipt, return {"store": null, "raw_lines": [], "items": []}
