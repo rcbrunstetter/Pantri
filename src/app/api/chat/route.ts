@@ -281,27 +281,31 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
       const slot = JSON.parse(match[1])
       const today = new Date()
       today.setHours(0, 0, 0, 0)
+
       // Find the next occurrence of the requested day from today
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       const targetDayIndex = dayNames.indexOf(slot.day)
-      let weekStart = new Date(today)
+      let targetDate = new Date(today)
       if (targetDayIndex !== -1) {
         const currentDayIndex = today.getDay()
         const daysUntil = (targetDayIndex - currentDayIndex + 7) % 7
-        const targetDate = new Date(today)
+        targetDate = new Date(today)
         targetDate.setDate(today.getDate() + daysUntil)
-        weekStart = new Date(targetDate)
-        weekStart.setDate(targetDate.getDate() - targetDate.getDay() + (targetDate.getDay() === 0 ? -6 : 1))
       }
-      const weekStartStr = weekStart.toISOString().split('T')[0]
 
-      const { data: existing } = await supabase
+      // week_start is today (not Monday) — find which "today-based" week contains the target date
+      // The planner shows 7 days from whatever day the user opened it
+      // We store week_start as today's date for the current 7-day window
+      const weekStartStr = today.toISOString().split('T')[0]
+
+      const { data: results } = await supabase
         .from('meal_plans')
         .select('meals')
         .eq('household_id', householdId)
         .eq('week_start', weekStartStr)
-        .single()
+        .limit(1)
 
+      const existing = results?.[0]
       const meals = existing?.meals || {}
       const updatedMeals = {
         ...meals,
@@ -315,12 +319,16 @@ Only include blocks when there are actual changes. Always confirm in friendly pl
         },
       }
 
-      await supabase.from('meal_plans').upsert({
+      const { error: upsertError } = await supabase.from('meal_plans').upsert({
         household_id: householdId,
         week_start: weekStartStr,
         meals: updatedMeals,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'household_id,week_start' })
+
+      if (upsertError) {
+        console.error('Failed to upsert meal plan:', upsertError)
+      }
     } catch (e) {
       console.error('Failed to save meal plan:', e)
     }
